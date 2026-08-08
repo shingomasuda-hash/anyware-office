@@ -1,0 +1,2420 @@
+{
+  "enums": [
+    {
+      "enum": "action_priority",
+      "sort": 1,
+      "value": "low",
+      "schema": "public"
+    },
+    {
+      "enum": "action_priority",
+      "sort": 2,
+      "value": "medium",
+      "schema": "public"
+    },
+    {
+      "enum": "action_priority",
+      "sort": 3,
+      "value": "high",
+      "schema": "public"
+    },
+    {
+      "enum": "action_status",
+      "sort": 1,
+      "value": "todo",
+      "schema": "public"
+    },
+    {
+      "enum": "action_status",
+      "sort": 2,
+      "value": "doing",
+      "schema": "public"
+    },
+    {
+      "enum": "action_status",
+      "sort": 3,
+      "value": "done",
+      "schema": "public"
+    },
+    {
+      "enum": "announcement_priority",
+      "sort": 1,
+      "value": "normal",
+      "schema": "public"
+    },
+    {
+      "enum": "announcement_priority",
+      "sort": 2,
+      "value": "important",
+      "schema": "public"
+    },
+    {
+      "enum": "announcement_priority",
+      "sort": 3,
+      "value": "urgent",
+      "schema": "public"
+    },
+    {
+      "enum": "deal_stage",
+      "sort": 1,
+      "value": "lead",
+      "schema": "public"
+    },
+    {
+      "enum": "deal_stage",
+      "sort": 2,
+      "value": "meeting",
+      "schema": "public"
+    },
+    {
+      "enum": "deal_stage",
+      "sort": 3,
+      "value": "proposal",
+      "schema": "public"
+    },
+    {
+      "enum": "deal_stage",
+      "sort": 4,
+      "value": "negotiation",
+      "schema": "public"
+    },
+    {
+      "enum": "deal_stage",
+      "sort": 5,
+      "value": "won",
+      "schema": "public"
+    },
+    {
+      "enum": "deal_stage",
+      "sort": 6,
+      "value": "lost",
+      "schema": "public"
+    },
+    {
+      "enum": "department_key",
+      "sort": 1,
+      "value": "LOCAL",
+      "schema": "public"
+    },
+    {
+      "enum": "department_key",
+      "sort": 2,
+      "value": "SIGNAL",
+      "schema": "public"
+    },
+    {
+      "enum": "department_key",
+      "sort": 3,
+      "value": "PARTNER",
+      "schema": "public"
+    },
+    {
+      "enum": "department_key",
+      "sort": 4,
+      "value": "TABLE",
+      "schema": "public"
+    },
+    {
+      "enum": "department_key",
+      "sort": 5,
+      "value": "GREEN",
+      "schema": "public"
+    },
+    {
+      "enum": "department_key",
+      "sort": 6,
+      "value": "MANAGEMENT",
+      "schema": "public"
+    },
+    {
+      "enum": "department_key",
+      "sort": 7,
+      "value": "OTHER",
+      "schema": "public"
+    },
+    {
+      "enum": "local_project_status",
+      "sort": 1,
+      "value": "planning",
+      "schema": "public"
+    },
+    {
+      "enum": "local_project_status",
+      "sort": 2,
+      "value": "active",
+      "schema": "public"
+    },
+    {
+      "enum": "local_project_status",
+      "sort": 3,
+      "value": "completed",
+      "schema": "public"
+    },
+    {
+      "enum": "meeting_status",
+      "sort": 1,
+      "value": "scheduled",
+      "schema": "public"
+    },
+    {
+      "enum": "meeting_status",
+      "sort": 2,
+      "value": "in_progress",
+      "schema": "public"
+    },
+    {
+      "enum": "meeting_status",
+      "sort": 3,
+      "value": "done",
+      "schema": "public"
+    },
+    {
+      "enum": "meeting_status",
+      "sort": 4,
+      "value": "cancelled",
+      "schema": "public"
+    },
+    {
+      "enum": "project_status",
+      "sort": 1,
+      "value": "planning",
+      "schema": "public"
+    },
+    {
+      "enum": "project_status",
+      "sort": 2,
+      "value": "active",
+      "schema": "public"
+    },
+    {
+      "enum": "project_status",
+      "sort": 3,
+      "value": "review",
+      "schema": "public"
+    },
+    {
+      "enum": "project_status",
+      "sort": 4,
+      "value": "completed",
+      "schema": "public"
+    },
+    {
+      "enum": "project_status",
+      "sort": 5,
+      "value": "paused",
+      "schema": "public"
+    },
+    {
+      "enum": "room_status",
+      "sort": 1,
+      "value": "available",
+      "schema": "public"
+    },
+    {
+      "enum": "room_status",
+      "sort": 2,
+      "value": "reserved",
+      "schema": "public"
+    },
+    {
+      "enum": "room_status",
+      "sort": 3,
+      "value": "in_use",
+      "schema": "public"
+    },
+    {
+      "enum": "section_key",
+      "sort": 1,
+      "value": "LOCAL",
+      "schema": "public"
+    },
+    {
+      "enum": "section_key",
+      "sort": 2,
+      "value": "SIGNAL",
+      "schema": "public"
+    },
+    {
+      "enum": "section_key",
+      "sort": 3,
+      "value": "PARTNER",
+      "schema": "public"
+    },
+    {
+      "enum": "section_key",
+      "sort": 4,
+      "value": "TABLE",
+      "schema": "public"
+    },
+    {
+      "enum": "section_key",
+      "sort": 5,
+      "value": "GREEN",
+      "schema": "public"
+    },
+    {
+      "enum": "user_role",
+      "sort": 1,
+      "value": "guest",
+      "schema": "public"
+    },
+    {
+      "enum": "user_role",
+      "sort": 2,
+      "value": "member",
+      "schema": "public"
+    },
+    {
+      "enum": "user_role",
+      "sort": 3,
+      "value": "admin",
+      "schema": "public"
+    },
+    {
+      "enum": "user_status",
+      "sort": 1,
+      "value": "online",
+      "schema": "public"
+    },
+    {
+      "enum": "user_status",
+      "sort": 2,
+      "value": "away",
+      "schema": "public"
+    },
+    {
+      "enum": "user_status",
+      "sort": 3,
+      "value": "meeting",
+      "schema": "public"
+    },
+    {
+      "enum": "user_status",
+      "sort": 4,
+      "value": "offline",
+      "schema": "public"
+    }
+  ],
+  "columns": [
+    {
+      "udt": "uuid",
+      "table": "announcements",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "text",
+      "table": "announcements",
+      "column": "title",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "announcements",
+      "column": "body",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 3,
+      "data_type": "text"
+    },
+    {
+      "udt": "announcement_priority",
+      "table": "announcements",
+      "column": "priority",
+      "schema": "public",
+      "default": "'normal'::announcement_priority",
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "_user_role",
+      "table": "announcements",
+      "column": "visible_roles",
+      "schema": "public",
+      "default": "'{guest,member,admin}'::user_role[]",
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "ARRAY"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "announcements",
+      "column": "published_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "announcements",
+      "column": "expires_at",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 7,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "announcements",
+      "column": "created_by",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 8,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "announcements",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 9,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "announcements",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 10,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "business_sections",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "section_key",
+      "table": "business_sections",
+      "column": "section_key",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "text",
+      "table": "business_sections",
+      "column": "title",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 3,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "business_sections",
+      "column": "tagline",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "business_sections",
+      "column": "description",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "text"
+    },
+    {
+      "udt": "int4",
+      "table": "business_sections",
+      "column": "display_order",
+      "schema": "public",
+      "default": "100",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "integer"
+    },
+    {
+      "udt": "bool",
+      "table": "business_sections",
+      "column": "is_active",
+      "schema": "public",
+      "default": "true",
+      "nullable": "NO",
+      "position": 7,
+      "data_type": "boolean"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "business_sections",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 8,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "business_sections",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 9,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "case_studies",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "text",
+      "table": "case_studies",
+      "column": "title",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "case_studies",
+      "column": "client_name",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 3,
+      "data_type": "text"
+    },
+    {
+      "udt": "section_key",
+      "table": "case_studies",
+      "column": "section_key",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "text",
+      "table": "case_studies",
+      "column": "summary",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "case_studies",
+      "column": "result",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "case_studies",
+      "column": "thumbnail_url",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 7,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "case_studies",
+      "column": "project_url",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 8,
+      "data_type": "text"
+    },
+    {
+      "udt": "bool",
+      "table": "case_studies",
+      "column": "is_public",
+      "schema": "public",
+      "default": "false",
+      "nullable": "NO",
+      "position": 9,
+      "data_type": "boolean"
+    },
+    {
+      "udt": "int4",
+      "table": "case_studies",
+      "column": "display_order",
+      "schema": "public",
+      "default": "100",
+      "nullable": "NO",
+      "position": 10,
+      "data_type": "integer"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "case_studies",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 11,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "case_studies",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 12,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "executive_metrics",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "text",
+      "table": "executive_metrics",
+      "column": "metric_key",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "executive_metrics",
+      "column": "label",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 3,
+      "data_type": "text"
+    },
+    {
+      "udt": "int8",
+      "table": "executive_metrics",
+      "column": "value",
+      "schema": "public",
+      "default": "0",
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "bigint"
+    },
+    {
+      "udt": "text",
+      "table": "executive_metrics",
+      "column": "unit",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "executive_metrics",
+      "column": "period",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "text"
+    },
+    {
+      "udt": "int8",
+      "table": "executive_metrics",
+      "column": "comparison_value",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 7,
+      "data_type": "bigint"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "executive_metrics",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 8,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "executive_metrics",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 9,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "green_deals",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "text",
+      "table": "green_deals",
+      "column": "company_name",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "green_deals",
+      "column": "deal_name",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 3,
+      "data_type": "text"
+    },
+    {
+      "udt": "deal_stage",
+      "table": "green_deals",
+      "column": "stage",
+      "schema": "public",
+      "default": "'lead'::deal_stage",
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "int8",
+      "table": "green_deals",
+      "column": "amount",
+      "schema": "public",
+      "default": "0",
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "bigint"
+    },
+    {
+      "udt": "int4",
+      "table": "green_deals",
+      "column": "probability",
+      "schema": "public",
+      "default": "0",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "integer"
+    },
+    {
+      "udt": "text",
+      "table": "green_deals",
+      "column": "next_action",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 7,
+      "data_type": "text"
+    },
+    {
+      "udt": "uuid",
+      "table": "green_deals",
+      "column": "assignee_id",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 8,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "date",
+      "table": "green_deals",
+      "column": "expected_close_at",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 9,
+      "data_type": "date"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "green_deals",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 10,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "green_deals",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 11,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "local_projects",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "text",
+      "table": "local_projects",
+      "column": "title",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "local_projects",
+      "column": "area",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 3,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "local_projects",
+      "column": "partner",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "text"
+    },
+    {
+      "udt": "local_project_status",
+      "table": "local_projects",
+      "column": "status",
+      "schema": "public",
+      "default": "'active'::local_project_status",
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "text",
+      "table": "local_projects",
+      "column": "summary",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "local_projects",
+      "column": "image_url",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 7,
+      "data_type": "text"
+    },
+    {
+      "udt": "bool",
+      "table": "local_projects",
+      "column": "is_public",
+      "schema": "public",
+      "default": "true",
+      "nullable": "NO",
+      "position": 8,
+      "data_type": "boolean"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "local_projects",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 9,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "local_projects",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 10,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "meeting_rooms",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "text",
+      "table": "meeting_rooms",
+      "column": "name",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "meeting_rooms",
+      "column": "description",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 3,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "meeting_rooms",
+      "column": "default_url",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "text"
+    },
+    {
+      "udt": "room_status",
+      "table": "meeting_rooms",
+      "column": "status",
+      "schema": "public",
+      "default": "'available'::room_status",
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "_user_role",
+      "table": "meeting_rooms",
+      "column": "visible_roles",
+      "schema": "public",
+      "default": "'{member,admin}'::user_role[]",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "ARRAY"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "meeting_rooms",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 7,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "meeting_rooms",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 8,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "meetings",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "text",
+      "table": "meetings",
+      "column": "title",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "text"
+    },
+    {
+      "udt": "uuid",
+      "table": "meetings",
+      "column": "meeting_room_id",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 3,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "meetings",
+      "column": "start_at",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "meetings",
+      "column": "end_at",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "text",
+      "table": "meetings",
+      "column": "meeting_url",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 6,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "meetings",
+      "column": "client_name",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 7,
+      "data_type": "text"
+    },
+    {
+      "udt": "uuid",
+      "table": "meetings",
+      "column": "host_id",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 8,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "meeting_status",
+      "table": "meetings",
+      "column": "status",
+      "schema": "public",
+      "default": "'scheduled'::meeting_status",
+      "nullable": "NO",
+      "position": 9,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "_user_role",
+      "table": "meetings",
+      "column": "visible_roles",
+      "schema": "public",
+      "default": "'{member,admin}'::user_role[]",
+      "nullable": "NO",
+      "position": 10,
+      "data_type": "ARRAY"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "meetings",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 11,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "meetings",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 12,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "next_actions",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "text",
+      "table": "next_actions",
+      "column": "title",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "text"
+    },
+    {
+      "udt": "uuid",
+      "table": "next_actions",
+      "column": "project_id",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 3,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "uuid",
+      "table": "next_actions",
+      "column": "assignee_id",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 4,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "next_actions",
+      "column": "due_at",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 5,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "action_status",
+      "table": "next_actions",
+      "column": "status",
+      "schema": "public",
+      "default": "'todo'::action_status",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "action_priority",
+      "table": "next_actions",
+      "column": "priority",
+      "schema": "public",
+      "default": "'medium'::action_priority",
+      "nullable": "NO",
+      "position": 7,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "next_actions",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 8,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "next_actions",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 9,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "profiles",
+      "column": "id",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "text",
+      "table": "profiles",
+      "column": "name",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "profiles",
+      "column": "email",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 3,
+      "data_type": "text"
+    },
+    {
+      "udt": "user_role",
+      "table": "profiles",
+      "column": "role",
+      "schema": "public",
+      "default": "'guest'::user_role",
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "text",
+      "table": "profiles",
+      "column": "position",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "text"
+    },
+    {
+      "udt": "department_key",
+      "table": "profiles",
+      "column": "department",
+      "schema": "public",
+      "default": "'OTHER'::department_key",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "user_status",
+      "table": "profiles",
+      "column": "status",
+      "schema": "public",
+      "default": "'offline'::user_status",
+      "nullable": "NO",
+      "position": 7,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "text",
+      "table": "profiles",
+      "column": "avatar_url",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 8,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "profiles",
+      "column": "bio",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 9,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "profiles",
+      "column": "today_schedule",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 10,
+      "data_type": "text"
+    },
+    {
+      "udt": "bool",
+      "table": "profiles",
+      "column": "is_public",
+      "schema": "public",
+      "default": "true",
+      "nullable": "NO",
+      "position": 11,
+      "data_type": "boolean"
+    },
+    {
+      "udt": "int4",
+      "table": "profiles",
+      "column": "display_order",
+      "schema": "public",
+      "default": "100",
+      "nullable": "NO",
+      "position": 12,
+      "data_type": "integer"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "profiles",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 13,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "profiles",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 14,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "projects",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "text",
+      "table": "projects",
+      "column": "title",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "projects",
+      "column": "client_name",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 3,
+      "data_type": "text"
+    },
+    {
+      "udt": "section_key",
+      "table": "projects",
+      "column": "business_section",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "project_status",
+      "table": "projects",
+      "column": "status",
+      "schema": "public",
+      "default": "'planning'::project_status",
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "text",
+      "table": "projects",
+      "column": "description",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "text"
+    },
+    {
+      "udt": "uuid",
+      "table": "projects",
+      "column": "assignee_id",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 7,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "int4",
+      "table": "projects",
+      "column": "progress",
+      "schema": "public",
+      "default": "0",
+      "nullable": "NO",
+      "position": 8,
+      "data_type": "integer"
+    },
+    {
+      "udt": "date",
+      "table": "projects",
+      "column": "due_date",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 9,
+      "data_type": "date"
+    },
+    {
+      "udt": "int8",
+      "table": "projects",
+      "column": "amount",
+      "schema": "public",
+      "default": "0",
+      "nullable": "NO",
+      "position": 10,
+      "data_type": "bigint"
+    },
+    {
+      "udt": "bool",
+      "table": "projects",
+      "column": "is_public",
+      "schema": "public",
+      "default": "false",
+      "nullable": "NO",
+      "position": 11,
+      "data_type": "boolean"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "projects",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 12,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "projects",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 13,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "section_metrics",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "section_key",
+      "table": "section_metrics",
+      "column": "section_key",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "USER-DEFINED"
+    },
+    {
+      "udt": "text",
+      "table": "section_metrics",
+      "column": "metric_key",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 3,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "section_metrics",
+      "column": "label",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "section_metrics",
+      "column": "value",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "section_metrics",
+      "column": "unit",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "section_metrics",
+      "column": "comparison_value",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 7,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "section_metrics",
+      "column": "comparison_label",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 8,
+      "data_type": "text"
+    },
+    {
+      "udt": "int4",
+      "table": "section_metrics",
+      "column": "display_order",
+      "schema": "public",
+      "default": "100",
+      "nullable": "NO",
+      "position": 9,
+      "data_type": "integer"
+    },
+    {
+      "udt": "_user_role",
+      "table": "section_metrics",
+      "column": "visible_roles",
+      "schema": "public",
+      "default": "'{member,admin}'::user_role[]",
+      "nullable": "NO",
+      "position": 10,
+      "data_type": "ARRAY"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "section_metrics",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 11,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "section_metrics",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 12,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "table_menu_items",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "text",
+      "table": "table_menu_items",
+      "column": "store_name",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "table_menu_items",
+      "column": "name",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 3,
+      "data_type": "text"
+    },
+    {
+      "udt": "text",
+      "table": "table_menu_items",
+      "column": "category",
+      "schema": "public",
+      "default": "''::text",
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "text"
+    },
+    {
+      "udt": "int4",
+      "table": "table_menu_items",
+      "column": "price",
+      "schema": "public",
+      "default": "0",
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "integer"
+    },
+    {
+      "udt": "int4",
+      "table": "table_menu_items",
+      "column": "sales_count",
+      "schema": "public",
+      "default": "0",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "integer"
+    },
+    {
+      "udt": "text",
+      "table": "table_menu_items",
+      "column": "image_url",
+      "schema": "public",
+      "default": null,
+      "nullable": "YES",
+      "position": 7,
+      "data_type": "text"
+    },
+    {
+      "udt": "bool",
+      "table": "table_menu_items",
+      "column": "is_active",
+      "schema": "public",
+      "default": "true",
+      "nullable": "NO",
+      "position": 8,
+      "data_type": "boolean"
+    },
+    {
+      "udt": "int4",
+      "table": "table_menu_items",
+      "column": "display_order",
+      "schema": "public",
+      "default": "100",
+      "nullable": "NO",
+      "position": 9,
+      "data_type": "integer"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "table_menu_items",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 10,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "table_menu_items",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 11,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "uuid",
+      "table": "table_store_metrics",
+      "column": "id",
+      "schema": "public",
+      "default": "gen_random_uuid()",
+      "nullable": "NO",
+      "position": 1,
+      "data_type": "uuid"
+    },
+    {
+      "udt": "text",
+      "table": "table_store_metrics",
+      "column": "store_name",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 2,
+      "data_type": "text"
+    },
+    {
+      "udt": "date",
+      "table": "table_store_metrics",
+      "column": "business_date",
+      "schema": "public",
+      "default": null,
+      "nullable": "NO",
+      "position": 3,
+      "data_type": "date"
+    },
+    {
+      "udt": "int8",
+      "table": "table_store_metrics",
+      "column": "sales",
+      "schema": "public",
+      "default": "0",
+      "nullable": "NO",
+      "position": 4,
+      "data_type": "bigint"
+    },
+    {
+      "udt": "int4",
+      "table": "table_store_metrics",
+      "column": "customers",
+      "schema": "public",
+      "default": "0",
+      "nullable": "NO",
+      "position": 5,
+      "data_type": "integer"
+    },
+    {
+      "udt": "int4",
+      "table": "table_store_metrics",
+      "column": "average_spend",
+      "schema": "public",
+      "default": "0",
+      "nullable": "NO",
+      "position": 6,
+      "data_type": "integer"
+    },
+    {
+      "udt": "text",
+      "table": "table_store_metrics",
+      "column": "store_status",
+      "schema": "public",
+      "default": "'open'::text",
+      "nullable": "NO",
+      "position": 7,
+      "data_type": "text"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "table_store_metrics",
+      "column": "created_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 8,
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "udt": "timestamptz",
+      "table": "table_store_metrics",
+      "column": "updated_at",
+      "schema": "public",
+      "default": "now()",
+      "nullable": "NO",
+      "position": 9,
+      "data_type": "timestamp with time zone"
+    }
+  ],
+  "policies": [
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "announcements",
+      "using": "is_admin()",
+      "policy": "announcements_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "announcements",
+      "using": "((\"current_role\"() = ANY (visible_roles)) AND (published_at <= now()) AND ((expires_at IS NULL) OR (expires_at > now())))",
+      "policy": "announcements_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "business_sections",
+      "using": "is_admin()",
+      "policy": "business_sections_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "business_sections",
+      "using": "(is_active OR is_member())",
+      "policy": "sections_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "case_studies",
+      "using": "is_admin()",
+      "policy": "case_studies_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "case_studies",
+      "using": "(is_public OR is_member())",
+      "policy": "case_studies_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "executive_metrics",
+      "using": "is_admin()",
+      "policy": "executive_metrics_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "executive_metrics",
+      "using": "is_member()",
+      "policy": "executive_metrics_member_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "green_deals",
+      "using": "is_admin()",
+      "policy": "green_deals_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "green_deals",
+      "using": "is_member()",
+      "policy": "green_deals_member_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "local_projects",
+      "using": "is_admin()",
+      "policy": "local_projects_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "local_projects",
+      "using": "(is_public OR is_member())",
+      "policy": "local_projects_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "meeting_rooms",
+      "using": "is_admin()",
+      "policy": "meeting_rooms_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "meeting_rooms",
+      "using": "(\"current_role\"() = ANY (visible_roles))",
+      "policy": "meeting_rooms_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "meetings",
+      "using": "is_admin()",
+      "policy": "meetings_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "meetings",
+      "using": "(\"current_role\"() = ANY (visible_roles))",
+      "policy": "meetings_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "next_actions",
+      "using": "is_admin()",
+      "policy": "next_actions_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "next_actions",
+      "using": "is_member()",
+      "policy": "next_actions_member_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "profiles",
+      "using": "is_admin()",
+      "policy": "profiles_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "profiles",
+      "using": "(is_public OR (id = auth.uid()) OR is_member())",
+      "policy": "profiles_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "profiles",
+      "using": "(id = auth.uid())",
+      "policy": "profiles_self_update",
+      "command": "UPDATE",
+      "with_check": "((id = auth.uid()) AND (role = ( SELECT p.role\n   FROM profiles p\n  WHERE (p.id = auth.uid()))) AND (is_public = ( SELECT p.is_public\n   FROM profiles p\n  WHERE (p.id = auth.uid()))) AND (department = ( SELECT p.department\n   FROM profiles p\n  WHERE (p.id = auth.uid()))) AND (display_order = ( SELECT p.display_order\n   FROM profiles p\n  WHERE (p.id = auth.uid()))) AND (email = ( SELECT p.email\n   FROM profiles p\n  WHERE (p.id = auth.uid()))))"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "projects",
+      "using": "is_admin()",
+      "policy": "projects_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "projects",
+      "using": "(is_public OR is_member())",
+      "policy": "projects_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "section_metrics",
+      "using": "is_admin()",
+      "policy": "section_metrics_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "section_metrics",
+      "using": "(\"current_role\"() = ANY (visible_roles))",
+      "policy": "section_metrics_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "table_menu_items",
+      "using": "is_admin()",
+      "policy": "table_menu_items_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "table_menu_items",
+      "using": "is_member()",
+      "policy": "table_menu_items_member_select",
+      "command": "SELECT",
+      "with_check": null
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "table_store_metrics",
+      "using": "is_admin()",
+      "policy": "table_store_metrics_admin_all",
+      "command": "ALL",
+      "with_check": "is_admin()"
+    },
+    {
+      "roles": [
+        "public"
+      ],
+      "table": "table_store_metrics",
+      "using": "is_member()",
+      "policy": "table_store_metrics_member_select",
+      "command": "SELECT",
+      "with_check": null
+    }
+  ],
+  "rls_enabled": {
+    "meetings": true,
+    "profiles": true,
+    "projects": true,
+    "green_deals": true,
+    "case_studies": true,
+    "next_actions": true,
+    "announcements": true,
+    "meeting_rooms": true,
+    "local_projects": true,
+    "section_metrics": true,
+    "table_menu_items": true,
+    "business_sections": true,
+    "executive_metrics": true,
+    "table_store_metrics": true
+  },
+  "foreign_keys": [
+    {
+      "table": "announcements",
+      "schema": "public",
+      "columns": [
+        "created_by"
+      ],
+      "on_delete": "SET NULL",
+      "on_update": "NO ACTION",
+      "ref_table": "profiles",
+      "constraint": "announcements_created_by_fkey",
+      "ref_schema": "public",
+      "ref_columns": [
+        "id"
+      ]
+    },
+    {
+      "table": "green_deals",
+      "schema": "public",
+      "columns": [
+        "assignee_id"
+      ],
+      "on_delete": "SET NULL",
+      "on_update": "NO ACTION",
+      "ref_table": "profiles",
+      "constraint": "green_deals_assignee_id_fkey",
+      "ref_schema": "public",
+      "ref_columns": [
+        "id"
+      ]
+    },
+    {
+      "table": "meetings",
+      "schema": "public",
+      "columns": [
+        "host_id"
+      ],
+      "on_delete": "SET NULL",
+      "on_update": "NO ACTION",
+      "ref_table": "profiles",
+      "constraint": "meetings_host_id_fkey",
+      "ref_schema": "public",
+      "ref_columns": [
+        "id"
+      ]
+    },
+    {
+      "table": "meetings",
+      "schema": "public",
+      "columns": [
+        "meeting_room_id"
+      ],
+      "on_delete": "SET NULL",
+      "on_update": "NO ACTION",
+      "ref_table": "meeting_rooms",
+      "constraint": "meetings_meeting_room_id_fkey",
+      "ref_schema": "public",
+      "ref_columns": [
+        "id"
+      ]
+    },
+    {
+      "table": "next_actions",
+      "schema": "public",
+      "columns": [
+        "assignee_id"
+      ],
+      "on_delete": "SET NULL",
+      "on_update": "NO ACTION",
+      "ref_table": "profiles",
+      "constraint": "next_actions_assignee_id_fkey",
+      "ref_schema": "public",
+      "ref_columns": [
+        "id"
+      ]
+    },
+    {
+      "table": "next_actions",
+      "schema": "public",
+      "columns": [
+        "project_id"
+      ],
+      "on_delete": "CASCADE",
+      "on_update": "NO ACTION",
+      "ref_table": "projects",
+      "constraint": "next_actions_project_id_fkey",
+      "ref_schema": "public",
+      "ref_columns": [
+        "id"
+      ]
+    },
+    {
+      "table": "profiles",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "on_delete": "CASCADE",
+      "on_update": "NO ACTION",
+      "ref_table": "users",
+      "constraint": "profiles_id_fkey",
+      "ref_schema": "auth",
+      "ref_columns": [
+        "id"
+      ]
+    },
+    {
+      "table": "projects",
+      "schema": "public",
+      "columns": [
+        "assignee_id"
+      ],
+      "on_delete": "SET NULL",
+      "on_update": "NO ACTION",
+      "ref_table": "profiles",
+      "constraint": "projects_assignee_id_fkey",
+      "ref_schema": "public",
+      "ref_columns": [
+        "id"
+      ]
+    }
+  ],
+  "primary_keys": [
+    {
+      "table": "announcements",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "announcements_pkey"
+    },
+    {
+      "table": "business_sections",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "business_sections_pkey"
+    },
+    {
+      "table": "case_studies",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "case_studies_pkey"
+    },
+    {
+      "table": "executive_metrics",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "executive_metrics_pkey"
+    },
+    {
+      "table": "green_deals",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "green_deals_pkey"
+    },
+    {
+      "table": "local_projects",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "local_projects_pkey"
+    },
+    {
+      "table": "meeting_rooms",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "meeting_rooms_pkey"
+    },
+    {
+      "table": "meetings",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "meetings_pkey"
+    },
+    {
+      "table": "next_actions",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "next_actions_pkey"
+    },
+    {
+      "table": "profiles",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "profiles_pkey"
+    },
+    {
+      "table": "projects",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "projects_pkey"
+    },
+    {
+      "table": "section_metrics",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "section_metrics_pkey"
+    },
+    {
+      "table": "table_menu_items",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "table_menu_items_pkey"
+    },
+    {
+      "table": "table_store_metrics",
+      "schema": "public",
+      "columns": [
+        "id"
+      ],
+      "constraint": "table_store_metrics_pkey"
+    }
+  ],
+  "check_constraints": [
+    {
+      "table": "green_deals",
+      "schema": "public",
+      "constraint": "green_deals_probability_check",
+      "definition": "CHECK (((probability >= 0) AND (probability <= 100)))"
+    },
+    {
+      "table": "meetings",
+      "schema": "public",
+      "constraint": "meetings_check",
+      "definition": "CHECK ((end_at > start_at))"
+    },
+    {
+      "table": "projects",
+      "schema": "public",
+      "constraint": "projects_amount_check",
+      "definition": "CHECK ((amount >= 0))"
+    },
+    {
+      "table": "projects",
+      "schema": "public",
+      "constraint": "projects_progress_check",
+      "definition": "CHECK (((progress >= 0) AND (progress <= 100)))"
+    }
+  ],
+  "unique_constraints": [
+    {
+      "table": "business_sections",
+      "schema": "public",
+      "columns": [
+        "section_key"
+      ],
+      "constraint": "business_sections_section_key_key"
+    },
+    {
+      "table": "executive_metrics",
+      "schema": "public",
+      "columns": [
+        "metric_key"
+      ],
+      "constraint": "executive_metrics_metric_key_key"
+    },
+    {
+      "table": "profiles",
+      "schema": "public",
+      "columns": [
+        "email"
+      ],
+      "constraint": "profiles_email_key"
+    },
+    {
+      "table": "section_metrics",
+      "schema": "public",
+      "columns": [
+        "section_key",
+        "metric_key"
+      ],
+      "constraint": "section_metrics_section_key_metric_key_key"
+    },
+    {
+      "table": "table_store_metrics",
+      "schema": "public",
+      "columns": [
+        "store_name",
+        "business_date"
+      ],
+      "constraint": "table_store_metrics_store_name_business_date_key"
+    }
+  ],
+  "row_counts_estimate": {
+    "meetings": 0,
+    "profiles": 2,
+    "projects": 0,
+    "green_deals": 0,
+    "case_studies": 0,
+    "next_actions": 0,
+    "announcements": 2,
+    "meeting_rooms": 3,
+    "local_projects": 0,
+    "section_metrics": 13,
+    "table_menu_items": 0,
+    "business_sections": 5,
+    "executive_metrics": 6,
+    "table_store_metrics": 1
+  }
+}

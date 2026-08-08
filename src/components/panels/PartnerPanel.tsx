@@ -1,18 +1,14 @@
 "use client";
 
 import type { DemoRole } from "@/types/office";
-import { partnerContent } from "@/data/mockOfficeData";
-import { MetricGrid, PanelSection, PanelSummary } from "./PanelKit";
+import SectionMetricsPanel from "./SectionMetricsPanel";
 
 export default function PartnerPanel({ role }: { role: DemoRole }) {
   return (
-    <>
-      <PanelSection>
-        <PanelSummary>{partnerContent.description}</PanelSummary>
-      </PanelSection>
-      <PanelSection title="METRICS">
-        <MetricGrid metrics={partnerContent.metrics} role={role} />
-      </PanelSection>
-    </>
+    <SectionMetricsPanel
+      sectionKey="PARTNER"
+      role={role}
+      fallbackDescription="企業の隣で、事業を動かす。"
+    />
   );
 }

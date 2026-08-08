@@ -17,7 +17,7 @@ import AdminPanel from "./AdminPanel";
 function AreaContent({ areaId, role }: { areaId: AreaId; role: DemoRole }) {
   switch (areaId) {
     case "ENTRANCE":
-      return <EntrancePanel />;
+      return <EntrancePanel role={role} />;
     case "STAFF":
       return <StaffPanel />;
     case "SIGNAL":
@@ -31,7 +31,7 @@ function AreaContent({ areaId, role }: { areaId: AreaId; role: DemoRole }) {
     case "LOCAL":
       return <LocalPanel role={role} />;
     case "MEETING":
-      return <MeetingPanel />;
+      return <MeetingPanel role={role} />;
     case "AI":
       return <AiPanel />;
     case "ADMIN":

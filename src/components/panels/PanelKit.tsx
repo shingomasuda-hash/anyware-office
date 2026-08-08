@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { DemoRole, OfficeArea, Visibility } from "@/types/office";
-import type { MockMetric } from "@/data/mockOfficeData";
-import { canView } from "@/lib/auth/visibility";
+import type { UserRole } from "@/types/database";
+import type { DemoRole, OfficeArea } from "@/types/office";
+import { canViewRoles, requiredRoleLabel } from "@/lib/auth/visibility";
 
 // PanelKit — the shared shell + building blocks every area panel is
-// composed from. STEP 2 swaps the mock content for repository data
-// without touching this shell.
+// composed from. Content arrives from the repository layer (Supabase or
+// DEMO); this shell is agnostic to the data source.
 
 export function PanelShell({
   area,
@@ -107,11 +107,59 @@ export function DemoBadge({ label = "DEMO DATA" }: { label?: string }) {
   );
 }
 
-function LockedCard({ needs }: { needs: Visibility }) {
+export function PanelLoading() {
+  return (
+    <div
+      className="flex flex-col items-center gap-2 py-10 text-zinc-400"
+      data-testid="panel-loading"
+    >
+      <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600" />
+      <p className="text-xs tracking-wider">LOADING</p>
+    </div>
+  );
+}
+
+export function PanelError({ message }: { message: string }) {
+  return (
+    <div
+      className="rounded-lg border border-red-200 bg-red-50 px-4 py-4 dark:border-red-900 dark:bg-red-950"
+      data-testid="panel-error"
+      role="alert"
+    >
+      <p className="text-xs font-semibold tracking-wider text-red-700 dark:text-red-400">
+        DATA ERROR
+      </p>
+      <p className="mt-1 break-words text-xs leading-5 text-red-600 dark:text-red-400">
+        {message}
+      </p>
+    </div>
+  );
+}
+
+export function PanelEmpty({ label }: { label: string }) {
+  return (
+    <p
+      className="rounded-lg border border-dashed border-zinc-300 px-4 py-5 text-center text-xs text-zinc-400 dark:border-zinc-700"
+      data-testid="panel-empty"
+    >
+      {label}
+    </p>
+  );
+}
+
+export interface PanelMetric {
+  id: string;
+  label: string;
+  value: string;
+  unit?: string;
+  visibleRoles: readonly UserRole[];
+}
+
+function LockedCard({ needs }: { needs: string }) {
   return (
     <div className="rounded-lg border border-dashed border-zinc-300 px-3 py-3 text-center dark:border-zinc-700">
       <p className="text-[10px] font-semibold tracking-wider text-zinc-400">
-        {needs.toUpperCase()} ONLY
+        {needs} ONLY
       </p>
       <p className="mt-1 text-[10px] text-zinc-400">Sign in — STEP 2.5</p>
     </div>
@@ -122,15 +170,18 @@ export function MetricGrid({
   metrics,
   role,
 }: {
-  metrics: MockMetric[];
+  metrics: PanelMetric[];
   role: DemoRole;
 }) {
+  if (metrics.length === 0) {
+    return <PanelEmpty label="No metrics yet" />;
+  }
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {metrics.map((m) =>
-        canView(role, m.visibility) ? (
+        canViewRoles(role, m.visibleRoles) ? (
           <div
-            key={m.label}
+            key={m.id}
             className="rounded-lg border border-zinc-200 px-3 py-3 dark:border-zinc-800"
           >
             <p className="truncate text-[11px] text-zinc-500" title={m.label}>
@@ -138,10 +189,15 @@ export function MetricGrid({
             </p>
             <p className="mt-1 text-2xl font-semibold tabular-nums">
               {m.value}
+              {m.unit ? (
+                <span className="ml-0.5 text-xs font-normal text-zinc-500">
+                  {m.unit}
+                </span>
+              ) : null}
             </p>
           </div>
         ) : (
-          <LockedCard key={m.label} needs={m.visibility} />
+          <LockedCard key={m.id} needs={requiredRoleLabel(m.visibleRoles)} />
         ),
       )}
     </div>
@@ -151,7 +207,12 @@ export function MetricGrid({
 export function PanelList({
   items,
 }: {
-  items: Array<{ key: string; primary: React.ReactNode; secondary?: React.ReactNode; trailing?: React.ReactNode }>;
+  items: Array<{
+    key: string;
+    primary: React.ReactNode;
+    secondary?: React.ReactNode;
+    trailing?: React.ReactNode;
+  }>;
 }) {
   return (
     <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
@@ -165,7 +226,9 @@ export function PanelList({
               </div>
             ) : null}
           </div>
-          {item.trailing ? <div className="shrink-0">{item.trailing}</div> : null}
+          {item.trailing ? (
+            <div className="shrink-0">{item.trailing}</div>
+          ) : null}
         </li>
       ))}
     </ul>
