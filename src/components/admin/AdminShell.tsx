@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getDataSource } from "@/lib/repositories";
+import SignOutButton from "./SignOutButton";
 
 const NAV = [
   { href: "/admin", label: "Dashboard" },
@@ -139,8 +140,9 @@ export default function AdminShell({
             <span className="rounded bg-amber-100 px-2 py-0.5 text-[9px] font-bold tracking-[0.15em] text-amber-700 dark:bg-amber-950 dark:text-amber-400">
               STEP 2 DATA MANAGEMENT — AUTH GUARD IN STEP 2.5
             </span>
-            <span className="ml-auto">
+            <span className="ml-auto flex items-center gap-2">
               <SourceBadge />
+              <SignOutButton />
             </span>
           </div>
         </header>

@@ -75,7 +75,7 @@ Directories are created as their first real files land in each STEP.
 | STEP 0 | Project foundation (Next.js + TypeScript + Tailwind) | ✅ Done |
 | STEP 1 | Office V1 — 2D map, 10 areas, avatar movement, mobile | ✅ Done |
 | STEP 2 | Supabase data layer — repositories, admin console | ✅ Done |
-| STEP 2.5 | Production auth — SSR sessions, server guards, RLS | Planned |
+| STEP 2.5 | Production auth — SSR sessions, server guards, RLS | Implemented — live acceptance pending (`npm run test:step25`) |
 | STEP 3 | Realtime presence — who is online, avatar sync | Planned |
 
 ## Office Areas

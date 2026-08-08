@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "reachability": "node scripts/reachability.ts"
+    "reachability": "node scripts/reachability.ts",
+    "test:step25": "node scripts/step25-acceptance.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.2",
     "next": "16.3.0",
     "react": "19.2.8",

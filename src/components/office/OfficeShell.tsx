@@ -5,6 +5,7 @@ import type { AreaId, DemoRole } from "@/types/office";
 import type { OfficeGame } from "@/lib/game/engine";
 import { getDataSource } from "@/lib/repositories";
 import { OfficeDataProvider } from "@/hooks/useOfficeData";
+import { useSessionRole } from "@/lib/auth/SessionProvider";
 import AreaPanel from "@/components/panels/AreaPanel";
 import DataSourceBadge from "./DataSourceBadge";
 import DebugOverlay from "./DebugOverlay";
@@ -43,8 +44,14 @@ export default function OfficeShell() {
   const gameRef = useRef<OfficeGame | null>(null);
   const [currentArea, setCurrentArea] = useState<AreaId | null>(null);
   const [openArea, setOpenArea] = useState<AreaId | null>(null);
-  const [role, setRole] = useState<DemoRole>("guest");
+  const [demoRole, setDemoRole] = useState<DemoRole>("guest");
+  const sessionRole = useSessionRole();
   const isMobile = useIsMobile();
+
+  // SUPABASE mode: the viewer's role comes from the real auth session
+  // (anonymous = guest). DEMO mode keeps the dev-only role switcher.
+  const source = getDataSource();
+  const role: DemoRole = source === "SUPABASE" ? sessionRole : demoRole;
 
   const openPanel = useCallback(() => {
     setOpenArea((prev) => prev ?? currentArea);
@@ -81,9 +88,11 @@ export default function OfficeShell() {
 
         <OfficeHUD area={currentArea} />
         <MiniMap gameRef={gameRef} currentArea={currentArea} />
-        <DemoRoleSwitcher role={role} onChange={setRole} />
+        {source === "DEMO" ? (
+          <DemoRoleSwitcher role={demoRole} onChange={setDemoRole} />
+        ) : null}
         <DebugOverlay gameRef={gameRef} />
-        <DataSourceBadge source={getDataSource()} />
+        <DataSourceBadge source={source} />
 
         {currentArea && openArea === null ? (
           <InteractionPrompt

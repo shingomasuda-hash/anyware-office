@@ -1,4 +1,6 @@
 import Link from "next/link";
+import ConfigurationError from "@/components/system/ConfigurationError";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 const links = [
   { href: "/office", label: "OFFICE", description: "Enter the virtual office" },
@@ -7,6 +9,9 @@ const links = [
 ] as const;
 
 export default function Home() {
+  if (!isSupabaseConfigured() && process.env.NODE_ENV === "production") {
+    return <ConfigurationError />;
+  }
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-12 px-6 py-16">
       <div className="text-center">
