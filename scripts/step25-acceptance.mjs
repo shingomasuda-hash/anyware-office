@@ -408,10 +408,85 @@ async function adminTests() {
       .eq("id", ann.id)
       .maybeSingle();
     await admin.from("announcements").delete().eq("id", ann.id);
-    record("office sync: announcement visible to guest (deleted)", Boolean(seen));
+    const { data: gone } = await anon
+      .from("announcements")
+      .select("id")
+      .eq("id", ann.id)
+      .maybeSingle();
+    record(
+      "office sync: announcement visible to guest (deleted)",
+      Boolean(seen) && gone === null,
+    );
   } catch (e) {
     record("office sync: announcement visible to guest (deleted)", false, String(e.message ?? e));
   }
+
+  // Office Sync C/D/E: admin creates a row → the area's viewer (member,
+  // reading through the same table the office area data source queries)
+  // sees it → admin deletes → the row is gone for the viewer.
+  const { client: viewer } = await loginClient(
+    MEMBER_EMAIL,
+    MEMBER_PASSWORD,
+    "member",
+  );
+  const syncSpecs = [
+    [
+      "office sync C: project appears in SIGNAL area (deleted)",
+      "projects",
+      {
+        title: `${PREFIX}sync_project`,
+        business_section: "SIGNAL",
+        is_public: true,
+      },
+      // The business-area panel scopes projects by business_section.
+      (q) => q.eq("business_section", "SIGNAL"),
+    ],
+    [
+      "office sync D: meeting appears in MEETING area (deleted)",
+      "meetings",
+      {
+        title: `${PREFIX}sync_meeting`,
+        start_at: "2000-01-02T10:00:00Z",
+        end_at: "2000-01-02T11:00:00Z",
+        visible_roles: ["member", "admin"],
+      },
+      (q) => q,
+    ],
+    [
+      "office sync E: green deal appears in GREEN area (deleted)",
+      "green_deals",
+      { company_name: `${PREFIX}sync_deal` },
+      (q) => q,
+    ],
+  ];
+  for (const [name, table, insert, scope] of syncSpecs) {
+    try {
+      const { data: created, error } = await admin
+        .from(table)
+        .insert(insert)
+        .select()
+        .single();
+      if (error) throw new Error(`insert: ${error.message}`);
+      const { data: seen, error: sErr } = await scope(
+        viewer.from(table).select("id"),
+      ).eq("id", created.id);
+      if (sErr) throw new Error(`viewer select: ${sErr.message}`);
+      const { error: dErr } = await admin
+        .from(table)
+        .delete()
+        .eq("id", created.id);
+      if (dErr) throw new Error(`delete: ${dErr.message}`);
+      const { data: gone, error: gErr } = await viewer
+        .from(table)
+        .select("id")
+        .eq("id", created.id);
+      if (gErr) throw new Error(`viewer recheck: ${gErr.message}`);
+      record(name, seen?.length === 1 && gone?.length === 0);
+    } catch (e) {
+      record(name, false, String(e.message ?? e));
+    }
+  }
+  await viewer.auth.signOut();
 
   // Cleanup safety net: remove anything left with the test prefix.
   const cleanupTargets = [

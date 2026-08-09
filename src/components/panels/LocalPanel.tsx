@@ -13,7 +13,7 @@ function LocalProjects() {
   // respected here for the DEMO source.
   const projects = state.data.localProjects.filter((p) => p.is_public);
   return (
-    <PanelSection title="PROJECTS">
+    <PanelSection title="LOCAL PROJECTS">
       {projects.length === 0 ? (
         <PanelEmpty label="No local projects yet" />
       ) : (

@@ -18,6 +18,7 @@ import {
   type Meeting,
   type MeetingRoom,
   type Profile,
+  type Project,
   type SectionMetric,
   type TableMenuItem,
   type TableStoreMetric,
@@ -30,6 +31,7 @@ export interface OfficeData {
   announcements: Announcement[];
   sections: BusinessSection[];
   sectionMetrics: SectionMetric[];
+  projects: Project[];
   staff: Profile[];
   meetingRooms: MeetingRoom[];
   meetings: Meeting[];
@@ -59,6 +61,7 @@ export function useOfficeData(): OfficeDataState {
       repos.announcements.list(),
       repos.businessSections.list(),
       repos.sectionMetrics.list(),
+      repos.projects.list(),
       repos.profiles.list(),
       repos.meetingRooms.list(),
       repos.meetings.list(),
@@ -72,6 +75,7 @@ export function useOfficeData(): OfficeDataState {
           announcements,
           sections,
           sectionMetrics,
+          projects,
           staff,
           meetingRooms,
           meetings,
@@ -88,6 +92,7 @@ export function useOfficeData(): OfficeDataState {
               announcements,
               sections,
               sectionMetrics,
+              projects,
               staff,
               meetingRooms,
               meetings,
