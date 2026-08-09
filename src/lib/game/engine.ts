@@ -1,3 +1,4 @@
+import type { RemoteAvatarRender } from "@/lib/realtime/types";
 import type { AreaId, AvatarState, Direction } from "@/types/office";
 import { moveWithCollision } from "./collision";
 import { AVATAR_SIZE, findAreaAt, SOLIDS, SPAWN, WORLD } from "./map";
@@ -70,6 +71,13 @@ export class OfficeGame {
   private currentArea: AreaId | null = findAreaAt(SPAWN);
 
   onAreaChange: ((area: AreaId | null) => void) | null = null;
+
+  /**
+   * STEP 3: remote avatars. The realtime manager owns their state and
+   * interpolation; the engine just asks for this frame's draw list.
+   * Stays outside React — sampled once per rendered frame.
+   */
+  remoteSource: ((dt: number) => RemoteAvatarRender[]) | null = null;
 
   attach(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -215,7 +223,7 @@ export class OfficeGame {
     return { ox, oy, scale, w: cssW, h: cssH };
   }
 
-  private render() {
+  private render(dt: number) {
     const canvas = this.canvas;
     const ctx = this.ctx;
     if (!canvas || !ctx) return;
@@ -230,14 +238,15 @@ export class OfficeGame {
       canvas.height = bh;
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawScene(ctx, this.viewport(cssW, cssH), this.avatar);
+    const remotes = this.remoteSource?.(dt) ?? null;
+    drawScene(ctx, this.viewport(cssW, cssH), this.avatar, remotes);
   }
 
   private loop = (time: number) => {
     const dt = Math.min((time - this.lastTime) / 1000, MAX_DT);
     this.lastTime = time;
     this.update(dt);
-    this.render();
+    this.render(dt);
     this.rafId = requestAnimationFrame(this.loop);
   };
 }

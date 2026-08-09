@@ -1,3 +1,4 @@
+import type { RemoteAvatarRender } from "@/lib/realtime/types";
 import type { AvatarState, FurnitureItem } from "@/types/office";
 import { AREAS, DOORWAYS, FURNITURE, WALLS, WORLD } from "./map";
 
@@ -119,10 +120,91 @@ function drawAvatar(ctx: CanvasRenderingContext2D, avatar: AvatarState) {
   // Facing up: back of the head, no eyes.
 }
 
+/**
+ * Remote avatars (STEP 3): same silhouette in a lighter tone so the
+ * local player stays visually primary, plus a compact name/department
+ * tag and a status dot. Kept deliberately quiet to preserve the clean,
+ * neutral look.
+ */
+function drawRemoteAvatar(
+  ctx: CanvasRenderingContext2D,
+  remote: RemoteAvatarRender,
+) {
+  const { x, y, direction } = remote;
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.10)";
+  ctx.beginPath();
+  ctx.ellipse(x, y + 12, 11, 4.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#6b7789";
+  ctx.beginPath();
+  ctx.roundRect(x - 9, y - 4, 18, 16, 6);
+  ctx.fill();
+
+  ctx.fillStyle = "#8b95a5";
+  ctx.beginPath();
+  ctx.arc(x, y - 10, 7.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#f5f5f2";
+  const eye = (ex: number, ey: number) => {
+    ctx.beginPath();
+    ctx.arc(ex, ey, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  if (direction === "down") {
+    eye(x - 3, y - 10);
+    eye(x + 3, y - 10);
+  } else if (direction === "left") {
+    eye(x - 4.5, y - 10);
+  } else if (direction === "right") {
+    eye(x + 4.5, y - 10);
+  }
+
+  // Name tag: NAME · DEPARTMENT with a status dot, in a soft pill.
+  const name = remote.displayName || "MEMBER";
+  const dept = remote.department ? ` · ${remote.department}` : "";
+  ctx.font = "600 11px system-ui, sans-serif";
+  const nameW = ctx.measureText(name).width;
+  ctx.font = "500 9px system-ui, sans-serif";
+  const deptW = dept ? ctx.measureText(dept).width : 0;
+  const dotSpace = 10;
+  const pillW = Math.min(nameW + deptW + dotSpace + 14, 190);
+  const pillH = 16;
+  const px = x - pillW / 2;
+  const py = y - 34;
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
+  ctx.beginPath();
+  ctx.roundRect(px, py, pillW, pillH, 8);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(47, 49, 54, 0.12)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = remote.status === "meeting" ? "#8e6cc0" : "#3fa66a";
+  ctx.beginPath();
+  ctx.arc(px + 8, py + pillH / 2, 2.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#2f3136";
+  ctx.font = "600 11px system-ui, sans-serif";
+  ctx.fillText(name, px + 13, py + pillH / 2, 120);
+  if (dept) {
+    ctx.fillStyle = "rgba(47, 49, 54, 0.55)";
+    ctx.font = "500 9px system-ui, sans-serif";
+    ctx.fillText(dept, px + 13 + Math.min(nameW, 120), py + pillH / 2, 60);
+  }
+}
+
 export function drawScene(
   ctx: CanvasRenderingContext2D,
   view: Viewport,
   avatar: AvatarState,
+  remotes: RemoteAvatarRender[] | null = null,
 ) {
   ctx.save();
   ctx.fillStyle = COLORS.outside;
@@ -171,6 +253,11 @@ export function drawScene(
     ctx.fillText(area.label, b.x + b.w / 2, b.y + b.h / 2 + 60);
   }
 
-  drawAvatar(ctx, avatar);
+  if (remotes) {
+    for (const remote of remotes) {
+      drawRemoteAvatar(ctx, remote);
+    }
+  }
+  drawAvatar(ctx, avatar); // local player draws on top
   ctx.restore();
 }

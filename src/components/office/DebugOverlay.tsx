@@ -2,22 +2,27 @@
 
 import { useEffect, useState } from "react";
 import type { GameSnapshot, OfficeGame } from "@/lib/game/engine";
+import type { RealtimeStats } from "@/lib/realtime/types";
 
 /** Development-only state readout. Also useful for STEP 3 realtime checks. */
 export default function DebugOverlay({
   gameRef,
+  realtimeStats = null,
 }: {
   gameRef: React.MutableRefObject<OfficeGame | null>;
+  realtimeStats?: (() => RealtimeStats) | null;
 }) {
   const [snap, setSnap] = useState<GameSnapshot | null>(null);
+  const [stats, setStats] = useState<RealtimeStats | null>(null);
 
   useEffect(() => {
     const id = window.setInterval(() => {
       const s = gameRef.current?.getSnapshot();
       if (s) setSnap(s);
+      setStats(realtimeStats?.() ?? null);
     }, 100);
     return () => window.clearInterval(id);
-  }, [gameRef]);
+  }, [gameRef, realtimeStats]);
 
   if (process.env.NODE_ENV === "production" || !snap) return null;
 
@@ -28,6 +33,14 @@ export default function DebugOverlay({
       <p>area: {snap.area ?? "—"}</p>
       <p>direction: {snap.direction}</p>
       <p>moving: {String(snap.moving)}</p>
+      {stats ? (
+        <>
+          <p>rt: {stats.status}</p>
+          <p>presence: {stats.presenceCount}</p>
+          <p>send/s: {stats.sentPerSecond}</p>
+          <p>private: {String(stats.privateChannel)}</p>
+        </>
+      ) : null}
     </div>
   );
 }

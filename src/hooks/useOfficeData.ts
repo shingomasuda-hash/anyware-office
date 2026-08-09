@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { subscribeOfficeDataChanges } from "@/lib/realtime/dataSync";
 import {
   getRepositories,
   repositoryErrorMessage,
@@ -57,64 +58,79 @@ export function useOfficeData(): OfficeDataState {
     let cancelled = false;
     setState({ status: "loading", source: repos.source });
 
-    Promise.all([
-      repos.announcements.list(),
-      repos.businessSections.list(),
-      repos.sectionMetrics.list(),
-      repos.projects.list(),
-      repos.profiles.list(),
-      repos.meetingRooms.list(),
-      repos.meetings.list(),
-      repos.tableStoreMetrics.list(),
-      repos.tableMenuItems.list(),
-      repos.greenDeals.list(),
-      repos.localProjects.list(),
-    ])
-      .then(
-        ([
-          announcements,
-          sections,
-          sectionMetrics,
-          projects,
-          staff,
-          meetingRooms,
-          meetings,
-          storeMetrics,
-          menuItems,
-          greenDeals,
-          localProjects,
-        ]) => {
-          if (cancelled) return;
+    // initial=false refreshes keep the current view on screen ("ready"
+    // with fresh data) instead of flashing a loading state.
+    const load = (initial: boolean) => {
+      Promise.all([
+        repos.announcements.list(),
+        repos.businessSections.list(),
+        repos.sectionMetrics.list(),
+        repos.projects.list(),
+        repos.profiles.list(),
+        repos.meetingRooms.list(),
+        repos.meetings.list(),
+        repos.tableStoreMetrics.list(),
+        repos.tableMenuItems.list(),
+        repos.greenDeals.list(),
+        repos.localProjects.list(),
+      ])
+        .then(
+          ([
+            announcements,
+            sections,
+            sectionMetrics,
+            projects,
+            staff,
+            meetingRooms,
+            meetings,
+            storeMetrics,
+            menuItems,
+            greenDeals,
+            localProjects,
+          ]) => {
+            if (cancelled) return;
+            setState({
+              status: "ready",
+              source: repos.source,
+              data: {
+                announcements,
+                sections,
+                sectionMetrics,
+                projects,
+                staff,
+                meetingRooms,
+                meetings,
+                storeMetrics,
+                menuItems,
+                greenDeals,
+                localProjects,
+              },
+            });
+          },
+        )
+        .catch((error: unknown) => {
+          if (cancelled || !initial) return; // keep last good data on live-refresh errors
           setState({
-            status: "ready",
+            status: "error",
             source: repos.source,
-            data: {
-              announcements,
-              sections,
-              sectionMetrics,
-              projects,
-              staff,
-              meetingRooms,
-              meetings,
-              storeMetrics,
-              menuItems,
-              greenDeals,
-              localProjects,
-            },
+            message: repositoryErrorMessage(error),
           });
-        },
-      )
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setState({
-          status: "error",
-          source: repos.source,
-          message: repositoryErrorMessage(error),
         });
-      });
+    };
+
+    load(true);
+
+    // STEP 3: live refresh — postgres_changes / repository pings arrive
+    // via the realtime data-sync layer; panels themselves stay
+    // subscription-free.
+    const unsubscribe =
+      repos.source === "SUPABASE"
+        ? subscribeOfficeDataChanges(() => load(false))
+        : null;
 
     return () => {
       cancelled = true;
+      unsubscribe?.();
     };
   }, []);
 

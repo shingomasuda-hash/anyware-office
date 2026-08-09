@@ -5,6 +5,7 @@ import type { AreaId, DemoRole } from "@/types/office";
 import type { OfficeGame } from "@/lib/game/engine";
 import { getDataSource } from "@/lib/repositories";
 import { OfficeDataProvider } from "@/hooks/useOfficeData";
+import { useOfficeRealtime } from "@/hooks/useOfficeRealtime";
 import { useSessionRole } from "@/lib/auth/SessionProvider";
 import AreaPanel from "@/components/panels/AreaPanel";
 import DataSourceBadge from "./DataSourceBadge";
@@ -15,6 +16,7 @@ import MiniMap from "./MiniMap";
 import MobileJoystick from "./MobileJoystick";
 import OfficeCanvas from "./OfficeCanvas";
 import OfficeHUD from "./OfficeHUD";
+import RealtimeHUD from "./RealtimeHUD";
 
 function useIsMobile(): boolean {
   const [mobile, setMobile] = useState(false);
@@ -53,6 +55,9 @@ export default function OfficeShell() {
   const source = getDataSource();
   const role: DemoRole = source === "SUPABASE" ? sessionRole : demoRole;
 
+  // STEP 3: presence + movement for authenticated members/admins.
+  const realtime = useOfficeRealtime(gameRef, currentArea);
+
   const openPanel = useCallback(() => {
     setOpenArea((prev) => prev ?? currentArea);
   }, [currentArea]);
@@ -88,10 +93,11 @@ export default function OfficeShell() {
 
         <OfficeHUD area={currentArea} />
         <MiniMap gameRef={gameRef} currentArea={currentArea} />
+        <RealtimeHUD realtime={realtime} />
         {source === "DEMO" ? (
           <DemoRoleSwitcher role={demoRole} onChange={setDemoRole} />
         ) : null}
-        <DebugOverlay gameRef={gameRef} />
+        <DebugOverlay gameRef={gameRef} realtimeStats={realtime.statsSource} />
         <DataSourceBadge source={source} />
 
         {currentArea && openArea === null ? (
