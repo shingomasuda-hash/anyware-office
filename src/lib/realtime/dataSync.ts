@@ -21,7 +21,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 
 const DATA_TOPIC = "office:data";
 
-/** Office-facing tables, in the STEP 3 priority order. */
+/** Office-facing tables whose repository writes ping the office. */
 export const SYNCED_TABLES = [
   "announcements",
   "projects",
@@ -40,6 +40,22 @@ export const SYNCED_TABLES = [
 ] as const;
 
 export type SyncedTable = (typeof SYNCED_TABLES)[number];
+
+/**
+ * postgres_changes bindings — must exactly match the tables the STEP 3
+ * migration adds to the supabase_realtime publication. Binding an
+ * unpublished table makes the server close the whole channel at join,
+ * losing the published tables' events too, so this list is deliberately
+ * NOT the full SYNCED_TABLES. The remaining tables stay live via the
+ * repository db-change pings.
+ */
+const PG_CHANGE_TABLES: readonly SyncedTable[] = [
+  "announcements",
+  "projects",
+  "section_metrics",
+  "meetings",
+  "green_deals",
+];
 
 const DEBOUNCE_MS = 250;
 
@@ -89,7 +105,7 @@ export function subscribeOfficeDataChanges(onChange: () => void): () => void {
   // Channel 2 — postgres_changes (canonical; requires the migration's
   // publication entries, harmlessly closed by the server otherwise).
   let pg: RealtimeChannel = supabase.channel(DATA_PG_TOPIC);
-  for (const table of SYNCED_TABLES) {
+  for (const table of PG_CHANGE_TABLES) {
     pg = pg.on("postgres_changes", { event: "*", schema: "public", table }, trigger);
   }
   pg.subscribe();
