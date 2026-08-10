@@ -70,6 +70,14 @@ const WATCHDOG_STALE_MS = 8000;
  * leavers disappear within seconds (no ghosts).
  */
 const PRESENCE_GRACE_MS = 8000;
+
+/**
+ * Periodic presence re-announce. A join diff lost between rapid
+ * re-tracks cannot be repaired by receivers, so each client re-tracks
+ * on an interval — an idle user can disappear from peers' rosters for
+ * at most ~KEEPALIVE_MS before self-healing.
+ */
+const KEEPALIVE_MS = 10000;
 /** ~12.5 broadcasts/second ceiling — well under Realtime limits. */
 const SEND_INTERVAL_MS = 80;
 /** Lerp aggressiveness for remote avatars (per second). */
@@ -94,6 +102,8 @@ export class OfficeRealtimeManager {
   private watchdogTimer: number | null = null;
   /** Last time we were live OR started a (re)subscribe attempt. */
   private lastHealthyAt = 0;
+  /** Last time presence track() was pushed (keepalive scheduling). */
+  private lastTrackAt = 0;
   private lastSent: { x: number; y: number; direction: string; areaId: AreaId | null } | null =
     null;
   private sentTimestamps: number[] = [];
@@ -142,6 +152,15 @@ export class OfficeRealtimeManager {
       this.pruneMissing();
       if (this.status === "live") {
         this.lastHealthyAt = Date.now();
+        // Presence keepalive — repair lost join diffs on the peers.
+        if (
+          this.tracked &&
+          this.channel &&
+          Date.now() - this.lastTrackAt >= KEEPALIVE_MS
+        ) {
+          this.lastTrackAt = Date.now();
+          void this.channel.track(this.trackMeta());
+        }
         return;
       }
       if (Date.now() - this.lastHealthyAt < WATCHDOG_STALE_MS) return;
@@ -203,6 +222,7 @@ export class OfficeRealtimeManager {
         this.setStatus("live");
         // (Re)announce ourselves after every successful join — this is
         // what restores presence after a reconnect.
+        this.lastTrackAt = Date.now();
         void channel.track(this.trackMeta()).then(() => {
           this.tracked = true;
         });
@@ -524,6 +544,7 @@ export class OfficeRealtimeManager {
     if (!changed) return;
     this.local = next;
     if (this.channel && this.status === "live" && this.tracked) {
+      this.lastTrackAt = Date.now();
       void this.channel.track(this.trackMeta());
     }
     this.scheduleRosterNotify();
