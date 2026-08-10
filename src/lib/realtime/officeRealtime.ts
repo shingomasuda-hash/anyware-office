@@ -320,18 +320,22 @@ export class OfficeRealtimeManager {
     this.scheduleRosterNotify();
   }
 
-  /** Remove remotes that stayed absent from presence beyond the grace. */
+  /**
+   * Remove remotes that stayed absent from presence beyond the grace AND
+   * have not broadcast movement recently — either signal keeps the
+   * avatar alive; losing both means they really left.
+   */
   private pruneMissing() {
     const now = Date.now();
     let removed = false;
     for (const [key, player] of this.remotes) {
-      if (
-        player.missingSince !== undefined &&
-        now - player.missingSince > PRESENCE_GRACE_MS
-      ) {
-        this.remotes.delete(key);
-        removed = true;
+      if (player.missingSince === undefined) continue;
+      if (now - player.missingSince <= PRESENCE_GRACE_MS) continue;
+      if (player.lastEventAt > 0 && now - player.lastEventAt <= PRESENCE_GRACE_MS) {
+        continue; // moving — alive despite a lost presence join
       }
+      this.remotes.delete(key);
+      removed = true;
     }
     if (removed) this.scheduleRosterNotify();
   }
@@ -340,6 +344,9 @@ export class OfficeRealtimeManager {
     if (!event?.userId || event.userId === this.local.userId) return;
     const player = this.remotes.get(event.userId);
     if (!player) return; // move before presence join — presence sync will add it
+    // A movement broadcast proves the peer is alive even when a presence
+    // join was lost between re-tracks — never prune a moving player.
+    player.missingSince = undefined;
     const first = player.lastEventAt === 0;
     player.tx = event.x;
     player.ty = event.y;
@@ -348,7 +355,8 @@ export class OfficeRealtimeManager {
       player.y = event.y;
     }
     player.direction = event.direction;
-    player.lastEventAt = event.ts;
+    // Local clock, not event.ts — prune math must not trust peer clocks.
+    player.lastEventAt = Date.now();
     if (player.meta.areaId !== event.areaId) {
       // Provisional status on area change: MEETING always overrides; on
       // leaving MEETING the owner's next presence re-track delivers
