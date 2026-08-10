@@ -4,8 +4,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 const links = [
   { href: "/office", label: "OFFICE", description: "Enter the virtual office" },
-  { href: "/login", label: "LOGIN", description: "Sign in (coming soon)" },
-  { href: "/admin", label: "ADMIN", description: "Admin console (coming soon)" },
+  { href: "/login", label: "LOGIN", description: "Sign in as member / admin" },
+  { href: "/admin", label: "ADMIN", description: "Admin console" },
 ] as const;
 
 export default function Home() {
@@ -16,7 +16,7 @@ export default function Home() {
     <main className="flex flex-1 flex-col items-center justify-center gap-12 px-6 py-16">
       <div className="text-center">
         <p className="text-xs font-medium tracking-[0.3em] text-zinc-500">
-          STEP 0 FOUNDATION
+          VIRTUAL OFFICE
         </p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
           AnyWare OFFICE

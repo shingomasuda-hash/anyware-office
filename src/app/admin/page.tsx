@@ -117,11 +117,11 @@ export default function AdminDashboardPage() {
             </li>
             <li className="flex justify-between">
               <span className="text-zinc-500">Auth guard</span>
-              <span className="font-medium text-amber-600">STEP 2.5</span>
+              <span className="font-medium text-emerald-600">ACTIVE</span>
             </li>
             <li className="flex justify-between">
               <span className="text-zinc-500">Realtime</span>
-              <span className="font-medium text-zinc-400">STEP 3</span>
+              <span className="font-medium text-emerald-600">LIVE</span>
             </li>
           </ul>
         </Card>

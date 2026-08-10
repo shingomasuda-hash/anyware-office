@@ -5,6 +5,10 @@ import type {
   RealtimeChannelSendResponse,
 } from "@supabase/supabase-js";
 import type { GameSnapshot } from "@/lib/game/engine";
+import {
+  effectiveStatus,
+  type ManualStatus,
+} from "@/lib/identity/identity";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import type { AreaId } from "@/types/office";
 import type {
@@ -68,6 +72,8 @@ const SNAP_DISTANCE = 260;
 export class OfficeRealtimeManager {
   private channel: RealtimeChannel | null = null;
   private local: PresenceMeta;
+  private manualStatus: ManualStatus = "available";
+  private idle = false;
   private remotes = new Map<string, RemotePlayer>();
   private status: RealtimeStatus = "connecting";
   private usingPrivate = true;
@@ -312,10 +318,18 @@ export class OfficeRealtimeManager {
     player.direction = event.direction;
     player.lastEventAt = event.ts;
     if (player.meta.areaId !== event.areaId) {
+      // Provisional status on area change: MEETING always overrides; on
+      // leaving MEETING the owner's next presence re-track delivers
+      // their real manual status.
       player.meta = {
         ...player.meta,
         areaId: event.areaId,
-        status: event.areaId === "MEETING" ? "meeting" : "online",
+        status:
+          event.areaId === "MEETING"
+            ? "meeting"
+            : player.meta.status === "meeting"
+              ? "available"
+              : player.meta.status,
       };
       this.scheduleRosterNotify();
     }
@@ -336,6 +350,8 @@ export class OfficeRealtimeManager {
         userId: this.local.userId,
         displayName: this.local.displayName,
         department: this.local.department,
+        position: this.local.position,
+        avatarUrl: this.local.avatarUrl,
         areaId: this.local.areaId,
         status: this.local.status,
         isSelf: true,
@@ -346,6 +362,8 @@ export class OfficeRealtimeManager {
         userId: p.meta.userId,
         displayName: p.meta.displayName,
         department: p.meta.department,
+        position: p.meta.position,
+        avatarUrl: p.meta.avatarUrl,
         areaId: p.meta.areaId,
         status: p.meta.status,
         isSelf: false,
@@ -409,9 +427,62 @@ export class OfficeRealtimeManager {
 
   /** Local area changed — refresh presence meta (rare, safe to re-track). */
   setLocalArea(areaId: AreaId | null) {
-    const status = areaId === "MEETING" ? "meeting" : "online";
-    if (this.local.areaId === areaId && this.local.status === status) return;
-    this.local = { ...this.local, areaId, status };
+    this.updateLocal({ areaId });
+  }
+
+  /** STEP 4: user picked a status mode from the HUD. */
+  setManualStatus(status: ManualStatus) {
+    if (this.manualStatus === status) return;
+    this.manualStatus = status;
+    this.idle = false; // an explicit choice is user activity
+    this.updateLocal({});
+  }
+
+  getManualStatus(): ManualStatus {
+    return this.manualStatus;
+  }
+
+  /** STEP 4: idle detector input (auto-away). */
+  setIdle(idle: boolean) {
+    if (this.idle === idle) return;
+    this.idle = idle;
+    this.updateLocal({});
+  }
+
+  /**
+   * STEP 4: the user edited their profile — refresh the client-safe
+   * identity fields and re-announce presence so every peer updates
+   * without reloads. The allowlist shape of PresenceMeta is unchanged.
+   */
+  updateLocalIdentity(fields: {
+    displayName?: string;
+    department?: string;
+    position?: string;
+    avatarUrl?: string | null;
+  }) {
+    this.updateLocal(fields);
+  }
+
+  /** Merge fields, recompute effective status, re-track if it changed. */
+  private updateLocal(fields: Partial<Omit<PresenceMeta, "userId" | "status">>) {
+    const next: PresenceMeta = {
+      ...this.local,
+      ...fields,
+      status: effectiveStatus(
+        this.manualStatus,
+        (fields.areaId !== undefined ? fields.areaId : this.local.areaId) ?? null,
+        this.idle,
+      ),
+    };
+    const changed =
+      next.displayName !== this.local.displayName ||
+      next.department !== this.local.department ||
+      next.position !== this.local.position ||
+      next.avatarUrl !== this.local.avatarUrl ||
+      next.areaId !== this.local.areaId ||
+      next.status !== this.local.status;
+    if (!changed) return;
+    this.local = next;
     if (this.channel && this.status === "live" && this.tracked) {
       void this.channel.track(this.trackMeta());
     }
@@ -442,12 +513,14 @@ export class OfficeRealtimeManager {
         p.moving = false;
       }
       out.push({
+        userId: p.meta.userId,
         x: p.x,
         y: p.y,
         direction: p.direction,
         moving: p.moving,
         displayName: p.meta.displayName,
         department: p.meta.department,
+        avatarUrl: p.meta.avatarUrl,
         status: p.meta.status,
       });
     }

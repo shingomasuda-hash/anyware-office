@@ -137,9 +137,6 @@ export default function AdminShell({
             <h1 className="text-base font-semibold tracking-tight">
               ADMIN CONSOLE
             </h1>
-            <span className="rounded bg-amber-100 px-2 py-0.5 text-[9px] font-bold tracking-[0.15em] text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-              STEP 2 DATA MANAGEMENT — AUTH GUARD IN STEP 2.5
-            </span>
             <span className="ml-auto flex items-center gap-2">
               <SourceBadge />
               <SignOutButton />

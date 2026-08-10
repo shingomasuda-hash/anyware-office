@@ -1,10 +1,12 @@
+import type { EffectiveStatus } from "@/lib/identity/identity";
 import type { AreaId, Direction } from "@/types/office";
 
 // STEP 3 realtime contracts. Everything that crosses the wire is defined
 // here so payloads stay auditable: NEVER add email, tokens, or any other
 // credential/identity material beyond what the office UI displays.
 
-export type PresenceStatus = "online" | "meeting";
+/** STEP 4: presence carries the identity layer's effective status. */
+export type PresenceStatus = EffectiveStatus;
 
 export type RealtimeStatus = "connecting" | "live" | "offline";
 
@@ -51,22 +53,26 @@ export interface RemotePlayer {
   lastEventAt: number;
 }
 
-/** What the canvas needs to draw one remote avatar this frame. */
+/** What a renderer needs to draw one remote avatar this frame. */
 export interface RemoteAvatarRender {
+  userId: string;
   x: number;
   y: number;
   direction: Direction;
   moving: boolean;
   displayName: string;
   department: string;
+  avatarUrl: string | null;
   status: PresenceStatus;
 }
 
-/** Low-frequency roster entry for the ONLINE panel (self included). */
+/** Low-frequency roster entry for the People panel (self included). */
 export interface RosterEntry {
   userId: string;
   displayName: string;
   department: string;
+  position: string;
+  avatarUrl: string | null;
   areaId: AreaId | null;
   status: PresenceStatus;
   isSelf: boolean;

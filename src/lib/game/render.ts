@@ -1,5 +1,11 @@
+import {
+  STATUS_COLORS,
+  buildIdentity,
+  type AvatarIdentity,
+} from "@/lib/identity/identity";
 import type { RemoteAvatarRender } from "@/lib/realtime/types";
 import type { AvatarState, FurnitureItem } from "@/types/office";
+import { getAvatarImage } from "./avatarImages";
 import { AREAS, DOORWAYS, FURNITURE, WALLS, WORLD } from "./map";
 
 export interface Viewport {
@@ -81,43 +87,99 @@ function drawFurniture(ctx: CanvasRenderingContext2D, item: FurnitureItem) {
   }
 }
 
-function drawAvatar(ctx: CanvasRenderingContext2D, avatar: AvatarState) {
-  const { x, y, direction } = avatar;
+function shade(hex: string, factor: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (v: number) => Math.max(0, Math.min(255, Math.round(v * factor)));
+  const r = ch((n >> 16) & 255);
+  const g = ch((n >> 8) & 255);
+  const b = ch(n & 255);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
+/**
+ * STEP 4: identity-aware avatar body shared by local and remote.
+ * Personal color body, avatar photo (or darker head + initials chip),
+ * status ring around the head.
+ */
+function drawIdentityAvatar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  direction: AvatarState["direction"],
+  identity: AvatarIdentity | null,
+  emphasized: boolean,
+) {
+  const bodyColor = identity ? identity.color : "#2b2d33";
+  const headColor = identity ? shade(identity.color, 1.25) : "#4a4d55";
 
   // Shadow
-  ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+  ctx.fillStyle = `rgba(0, 0, 0, ${emphasized ? 0.15 : 0.1})`;
   ctx.beginPath();
   ctx.ellipse(x, y + 12, 11, 4.5, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Body
-  ctx.fillStyle = "#2b2d33";
+  ctx.fillStyle = bodyColor;
   ctx.beginPath();
   ctx.roundRect(x - 9, y - 4, 18, 16, 6);
   ctx.fill();
 
-  // Head
-  ctx.fillStyle = "#4a4d55";
-  ctx.beginPath();
-  ctx.arc(x, y - 10, 7.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Face — eyes indicate facing direction (none when facing away)
-  ctx.fillStyle = "#f5f5f2";
-  const eye = (ex: number, ey: number) => {
+  // Status ring around the head
+  if (identity) {
+    ctx.strokeStyle = STATUS_COLORS[identity.status];
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(ex, ey, 1.6, 0, Math.PI * 2);
-    ctx.fill();
-  };
-  if (direction === "down") {
-    eye(x - 3, y - 10);
-    eye(x + 3, y - 10);
-  } else if (direction === "left") {
-    eye(x - 4.5, y - 10);
-  } else if (direction === "right") {
-    eye(x + 4.5, y - 10);
+    ctx.arc(x, y - 10, 9.5, 0, Math.PI * 2);
+    ctx.stroke();
   }
-  // Facing up: back of the head, no eyes.
+
+  // Head: avatar photo when loaded, else colored head (+ eyes).
+  const img = identity ? getAvatarImage(identity.avatarUrl) : null;
+  if (img) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y - 10, 7.5, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(img, x - 7.5, y - 17.5, 15, 15);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = headColor;
+    ctx.beginPath();
+    ctx.arc(x, y - 10, 7.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#f5f5f2";
+    const eye = (ex: number, ey: number) => {
+      ctx.beginPath();
+      ctx.arc(ex, ey, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    if (direction === "down") {
+      eye(x - 3, y - 10);
+      eye(x + 3, y - 10);
+    } else if (direction === "left") {
+      eye(x - 4.5, y - 10);
+    } else if (direction === "right") {
+      eye(x + 4.5, y - 10);
+    }
+    // Facing up: back of the head, no eyes.
+  }
+
+  // Initials chip on the chest — identity even without a photo.
+  if (identity && !img) {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+    ctx.font = "700 7px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(identity.initials, x, y + 4, 16);
+  }
+}
+
+function drawAvatar(
+  ctx: CanvasRenderingContext2D,
+  avatar: AvatarState,
+  identity: AvatarIdentity | null,
+) {
+  drawIdentityAvatar(ctx, avatar.x, avatar.y, avatar.direction, identity, true);
 }
 
 /**
@@ -131,36 +193,14 @@ function drawRemoteAvatar(
   remote: RemoteAvatarRender,
 ) {
   const { x, y, direction } = remote;
-
-  ctx.fillStyle = "rgba(0, 0, 0, 0.10)";
-  ctx.beginPath();
-  ctx.ellipse(x, y + 12, 11, 4.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#6b7789";
-  ctx.beginPath();
-  ctx.roundRect(x - 9, y - 4, 18, 16, 6);
-  ctx.fill();
-
-  ctx.fillStyle = "#8b95a5";
-  ctx.beginPath();
-  ctx.arc(x, y - 10, 7.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#f5f5f2";
-  const eye = (ex: number, ey: number) => {
-    ctx.beginPath();
-    ctx.arc(ex, ey, 1.6, 0, Math.PI * 2);
-    ctx.fill();
-  };
-  if (direction === "down") {
-    eye(x - 3, y - 10);
-    eye(x + 3, y - 10);
-  } else if (direction === "left") {
-    eye(x - 4.5, y - 10);
-  } else if (direction === "right") {
-    eye(x + 4.5, y - 10);
-  }
+  const identity = buildIdentity({
+    userId: remote.userId,
+    displayName: remote.displayName,
+    department: remote.department,
+    avatarUrl: remote.avatarUrl,
+    status: remote.status,
+  });
+  drawIdentityAvatar(ctx, x, y, direction, identity, false);
 
   // Name tag: NAME · DEPARTMENT with a status dot, in a soft pill.
   const name = remote.displayName || "MEMBER";
@@ -183,7 +223,7 @@ function drawRemoteAvatar(
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  ctx.fillStyle = remote.status === "meeting" ? "#8e6cc0" : "#3fa66a";
+  ctx.fillStyle = STATUS_COLORS[remote.status];
   ctx.beginPath();
   ctx.arc(px + 8, py + pillH / 2, 2.6, 0, Math.PI * 2);
   ctx.fill();
@@ -205,6 +245,7 @@ export function drawScene(
   view: Viewport,
   avatar: AvatarState,
   remotes: RemoteAvatarRender[] | null = null,
+  localIdentity: AvatarIdentity | null = null,
 ) {
   ctx.save();
   ctx.fillStyle = COLORS.outside;
@@ -258,6 +299,6 @@ export function drawScene(
       drawRemoteAvatar(ctx, remote);
     }
   }
-  drawAvatar(ctx, avatar); // local player draws on top
+  drawAvatar(ctx, avatar, localIdentity); // local player draws on top
   ctx.restore();
 }

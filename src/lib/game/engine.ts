@@ -1,8 +1,15 @@
+import type { AvatarIdentity } from "@/lib/identity/identity";
 import type { RemoteAvatarRender } from "@/lib/realtime/types";
 import type { AreaId, AvatarState, Direction } from "@/types/office";
 import { moveWithCollision } from "./collision";
 import { AVATAR_SIZE, findAreaAt, SOLIDS, SPAWN, WORLD } from "./map";
 import { drawScene, type Viewport } from "./render";
+
+/** Result of a click/tap hit test against avatars (STEP 4). */
+export type AvatarPick =
+  | { kind: "self" }
+  | { kind: "remote"; userId: string }
+  | null;
 
 export interface GameSnapshot {
   x: number;
@@ -32,6 +39,8 @@ declare global {
     __officeGame?: {
       teleport: (x: number, y: number) => void;
       snapshot: () => GameSnapshot;
+      /** dev/test: world → canvas CSS px (for click simulation). */
+      worldToScreen: (x: number, y: number) => { x: number; y: number } | null;
     };
   }
 }
@@ -79,6 +88,38 @@ export class OfficeGame {
    */
   remoteSource: ((dt: number) => RemoteAvatarRender[]) | null = null;
 
+  /** STEP 4: the local player's identity (color / photo / status). */
+  private localIdentity: AvatarIdentity | null = null;
+  /** Last frame's remotes + viewport, kept for click hit tests. */
+  private lastRemotes: RemoteAvatarRender[] = [];
+  private lastViewport: Viewport | null = null;
+
+  setLocalIdentity(identity: AvatarIdentity | null) {
+    this.localIdentity = identity;
+  }
+
+  /**
+   * Hit test a canvas-space (CSS px) point against avatars. The local
+   * player wins ties; remotes are tested nearest-first.
+   */
+  pickAvatar(cssX: number, cssY: number): AvatarPick {
+    const view = this.lastViewport;
+    if (!view) return null;
+    const wx = cssX / view.scale + view.ox;
+    const wy = cssY / view.scale + view.oy;
+    // Avatar visual bounds: head top ~y-18 to shadow ~y+14, width ~22.
+    const hit = (ax: number, ay: number) =>
+      Math.abs(wx - ax) <= 14 && wy >= ay - 22 && wy <= ay + 16;
+    if (hit(this.avatar.x, this.avatar.y)) return { kind: "self" };
+    let best: { userId: string; d: number } | null = null;
+    for (const r of this.lastRemotes) {
+      if (!hit(r.x, r.y)) continue;
+      const d = Math.hypot(wx - r.x, wy - r.y);
+      if (!best || d < best.d) best = { userId: r.userId, d };
+    }
+    return best ? { kind: "remote", userId: best.userId } : null;
+  }
+
   attach(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
@@ -92,6 +133,11 @@ export class OfficeGame {
       window.__officeGame = {
         teleport: (x, y) => this.teleport(x, y),
         snapshot: () => this.getSnapshot(),
+        worldToScreen: (x, y) => {
+          const view = this.lastViewport;
+          if (!view) return null;
+          return { x: (x - view.ox) * view.scale, y: (y - view.oy) * view.scale };
+        },
       };
     }
   }
@@ -239,7 +285,10 @@ export class OfficeGame {
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const remotes = this.remoteSource?.(dt) ?? null;
-    drawScene(ctx, this.viewport(cssW, cssH), this.avatar, remotes);
+    const view = this.viewport(cssW, cssH);
+    this.lastRemotes = remotes ?? [];
+    this.lastViewport = view;
+    drawScene(ctx, view, this.avatar, remotes, this.localIdentity);
   }
 
   private loop = (time: number) => {

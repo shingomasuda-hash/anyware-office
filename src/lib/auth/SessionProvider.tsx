@@ -19,6 +19,11 @@ import { toCurrentUser, type CurrentUser } from "./types";
 
 const SessionContext = createContext<CurrentUser | null>(null);
 
+/** STEP 4: lets the profile editor re-pull the profile after a save. */
+const SessionRefreshContext = createContext<() => Promise<void>>(
+  async () => {},
+);
+
 export function SessionProvider({
   initialUser,
   children,
@@ -27,6 +32,24 @@ export function SessionProvider({
   children: React.ReactNode;
 }) {
   const [user, setUser] = useState<CurrentUser | null>(initialUser);
+
+  const refresh = async () => {
+    if (!isSupabaseConfigured()) return;
+    const supabase = getSupabaseClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (!authUser) {
+      setUser(null);
+      return;
+    }
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", authUser.id)
+      .maybeSingle();
+    if (data) setUser(toCurrentUser(data));
+  };
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
@@ -59,12 +82,21 @@ export function SessionProvider({
   }, []);
 
   return (
-    <SessionContext.Provider value={user}>{children}</SessionContext.Provider>
+    <SessionContext.Provider value={user}>
+      <SessionRefreshContext.Provider value={refresh}>
+        {children}
+      </SessionRefreshContext.Provider>
+    </SessionContext.Provider>
   );
 }
 
 export function useCurrentUser(): CurrentUser | null {
   return useContext(SessionContext);
+}
+
+/** Re-fetch the current profile into the session context (STEP 4). */
+export function useSessionRefresh(): () => Promise<void> {
+  return useContext(SessionRefreshContext);
 }
 
 /** The viewer's effective role — "guest" when anonymous. */
