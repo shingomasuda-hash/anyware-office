@@ -51,6 +51,12 @@ export interface RemotePlayer {
   direction: Direction;
   moving: boolean;
   lastEventAt: number;
+  /**
+   * Set while the key is absent from presence state. Rapid re-tracks can
+   * transiently drop a key between leave/join diffs, so removal waits a
+   * grace period instead of firing on the first empty snapshot.
+   */
+  missingSince?: number;
 }
 
 /** What a renderer needs to draw one remote avatar this frame. */

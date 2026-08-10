@@ -62,6 +62,14 @@ let privateChannelRejected = false;
  * sockets, and any teardown race. */
 const WATCHDOG_INTERVAL_MS = 3000;
 const WATCHDOG_STALE_MS = 8000;
+
+/**
+ * How long a remote may be absent from presence state before its avatar
+ * is dropped. Bridges the transient leave→join gap of rapid re-tracks
+ * (status/area/profile changes) while still guaranteeing that real
+ * leavers disappear within seconds (no ghosts).
+ */
+const PRESENCE_GRACE_MS = 8000;
 /** ~12.5 broadcasts/second ceiling — well under Realtime limits. */
 const SEND_INTERVAL_MS = 80;
 /** Lerp aggressiveness for remote avatars (per second). */
@@ -131,6 +139,7 @@ export class OfficeRealtimeManager {
     this.lastHealthyAt = Date.now();
     this.watchdogTimer = window.setInterval(() => {
       if (this.disposed || this.failedClosed) return;
+      this.pruneMissing();
       if (this.status === "live") {
         this.lastHealthyAt = Date.now();
         return;
@@ -280,6 +289,7 @@ export class OfficeRealtimeManager {
         // Movement broadcasts are the position authority once flowing —
         // keep interpolation state, refresh identity/area/status only.
         existing.meta = { ...meta, x: existing.meta.x, y: existing.meta.y };
+        existing.missingSince = undefined;
       } else {
         const hasPos = typeof meta.x === "number" && typeof meta.y === "number";
         this.remotes.set(key, {
@@ -297,11 +307,33 @@ export class OfficeRealtimeManager {
       }
     }
 
-    // Presence LEAVE → drop the avatar (no ghosts).
-    for (const key of this.remotes.keys()) {
-      if (!seen.has(key)) this.remotes.delete(key);
+    // Presence LEAVE → drop the avatar after a short grace period (the
+    // watchdog prunes; see pruneMissing). Immediate deletion here would
+    // flicker avatars away during rapid re-track leave/join gaps.
+    const now = Date.now();
+    for (const player of this.remotes.values()) {
+      if (!seen.has(player.meta.userId) && player.missingSince === undefined) {
+        player.missingSince = now;
+      }
     }
+    this.pruneMissing();
     this.scheduleRosterNotify();
+  }
+
+  /** Remove remotes that stayed absent from presence beyond the grace. */
+  private pruneMissing() {
+    const now = Date.now();
+    let removed = false;
+    for (const [key, player] of this.remotes) {
+      if (
+        player.missingSince !== undefined &&
+        now - player.missingSince > PRESENCE_GRACE_MS
+      ) {
+        this.remotes.delete(key);
+        removed = true;
+      }
+    }
+    if (removed) this.scheduleRosterNotify();
   }
 
   private handleMove(event: MoveEvent) {
