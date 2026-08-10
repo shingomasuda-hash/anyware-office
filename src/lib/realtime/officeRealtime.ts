@@ -27,17 +27,29 @@ import type {
 //   guests neither publish nor subscribe).
 // - The payload allowlist lives in realtime/types.ts — no email, no
 //   tokens.
-// - The manager first tries a PRIVATE channel (Supabase Realtime
-//   Authorization; see supabase/migrations/step3_realtime.sql). Until
-//   those policies are applied to the project it falls back to a public
-//   channel carrying the same minimal payload, and reports which mode it
-//   is in via stats.privateChannel.
+// - The office channel is PRIVATE (Supabase Realtime Authorization; see
+//   supabase/migrations/step3_realtime.sql). In production this is
+//   private-or-nothing: if authorization fails, realtime FAILS CLOSED —
+//   the office keeps working, presence/broadcast/remote avatars stay
+//   OFFLINE, and employee presence never flows on a public topic.
+// - Development/test builds may fall back to a public channel carrying
+//   the same minimal payload so the feature can be exercised before the
+//   migration is applied; stats.privateChannel reports the mode.
 
 const TOPIC = "office:v1";
+
+/**
+ * Public-channel fallback is a development/test convenience only.
+ * Production is private-or-nothing: presence payloads carry employee
+ * information (name, department, position, area) and must never be
+ * published to a topic that anonymous clients could subscribe to.
+ */
+const ALLOW_PUBLIC_FALLBACK = process.env.NODE_ENV !== "production";
+
 /**
  * Once the project rejects the private channel (Realtime Authorization
- * policies not applied), remember it for this page load — reconnects go
- * straight to the public fallback instead of re-erroring.
+ * policies not applied), remember it for this page load — dev reconnects
+ * go straight to the public fallback instead of re-erroring.
  */
 let privateChannelRejected = false;
 
@@ -61,6 +73,8 @@ export class OfficeRealtimeManager {
   private usingPrivate = true;
   private disposed = false;
   private tracked = false;
+  /** Production: authorization was rejected — realtime stays off. */
+  private failedClosed = false;
 
   private sendTimer: number | null = null;
   private watchdogTimer: number | null = null;
@@ -84,12 +98,21 @@ export class OfficeRealtimeManager {
   // ── lifecycle ────────────────────────────────────────────────────────
 
   async connect(): Promise<void> {
-    const supabase = getSupabaseClient();
-    // Attach the user JWT to the realtime socket (required for private
-    // channels; harmless on public ones).
-    await supabase.realtime.setAuth();
-    await this.subscribeChannel(!privateChannelRejected);
-    this.startWatchdog();
+    try {
+      const supabase = getSupabaseClient();
+      // Attach the user JWT to the realtime socket (required for private
+      // channels; harmless on public ones).
+      await supabase.realtime.setAuth();
+      await this.subscribeChannel(
+        !(ALLOW_PUBLIC_FALLBACK && privateChannelRejected),
+      );
+      this.startWatchdog();
+    } catch {
+      // Never let a realtime failure escape into the office UI — the
+      // watchdog (or the next mount) retries; until then we're offline.
+      this.setStatus(this.disposed ? "offline" : "connecting");
+      this.startWatchdog();
+    }
   }
 
   /**
@@ -101,14 +124,16 @@ export class OfficeRealtimeManager {
     if (this.watchdogTimer !== null) return;
     this.lastHealthyAt = Date.now();
     this.watchdogTimer = window.setInterval(() => {
-      if (this.disposed) return;
+      if (this.disposed || this.failedClosed) return;
       if (this.status === "live") {
         this.lastHealthyAt = Date.now();
         return;
       }
       if (Date.now() - this.lastHealthyAt < WATCHDOG_STALE_MS) return;
       this.lastHealthyAt = Date.now();
-      void this.subscribeChannel(!privateChannelRejected);
+      void this.subscribeChannel(
+        !(ALLOW_PUBLIC_FALLBACK && privateChannelRejected),
+      ).catch(() => {});
     }, WATCHDOG_INTERVAL_MS);
   }
 
@@ -171,17 +196,26 @@ export class OfficeRealtimeManager {
       if (state === "CHANNEL_ERROR") {
         const message = err?.message ?? "";
         if (tryPrivate && !fellBack && /unauthorized|permission/i.test(message)) {
-          // Realtime Authorization policies not applied yet — fall back
-          // to the public channel (payload is minimal by design).
           fellBack = true;
-          privateChannelRejected = true;
           this.channel = null; // supersede before async teardown
-          void supabase
-            .removeChannel(channel)
-            .catch(() => {})
-            .then(() => {
-              if (!this.disposed) void this.subscribeChannel(false);
-            });
+          if (ALLOW_PUBLIC_FALLBACK) {
+            // Dev/test only: Realtime Authorization not applied yet —
+            // fall back to the public channel (payload is minimal by
+            // design). Never reached in production builds.
+            privateChannelRejected = true;
+            void supabase
+              .removeChannel(channel)
+              .catch(() => {})
+              .then(() => {
+                if (!this.disposed) void this.subscribeChannel(false);
+              });
+          } else {
+            // Production fail-closed: no public fallback. The office
+            // keeps working; presence/broadcast/remote avatars stay off.
+            this.failedClosed = true;
+            void supabase.removeChannel(channel).catch(() => {});
+            this.setStatus("offline");
+          }
           return;
         }
         this.setStatus("connecting");
