@@ -34,6 +34,12 @@ import type {
 //   is in via stats.privateChannel.
 
 const TOPIC = "office:v1";
+/**
+ * Once the project rejects the private channel (Realtime Authorization
+ * policies not applied), remember it for this page load — reconnects go
+ * straight to the public fallback instead of re-erroring.
+ */
+let privateChannelRejected = false;
 /** ~12.5 broadcasts/second ceiling — well under Realtime limits. */
 const SEND_INTERVAL_MS = 80;
 /** Lerp aggressiveness for remote avatars (per second). */
@@ -73,7 +79,7 @@ export class OfficeRealtimeManager {
     // Attach the user JWT to the realtime socket (required for private
     // channels; harmless on public ones).
     await supabase.realtime.setAuth();
-    await this.subscribeChannel(true);
+    await this.subscribeChannel(!privateChannelRejected);
   }
 
   /** Presence payload including the current position snapshot. */
@@ -116,8 +122,13 @@ export class OfficeRealtimeManager {
       this.handleMove(payload as MoveEvent),
     );
 
+    // The subscribe callback fires on every status transition, including
+    // auto-rejoin attempts of an errored channel. Guard so (a) callbacks
+    // from a superseded channel instance are ignored and (b) the
+    // private→public fallback runs at most once per instance.
+    let fellBack = false;
     channel.subscribe((state, err) => {
-      if (this.disposed) return;
+      if (this.disposed || this.channel !== channel) return;
       if (state === "SUBSCRIBED") {
         this.setStatus("live");
         // (Re)announce ourselves after every successful join — this is
@@ -129,9 +140,12 @@ export class OfficeRealtimeManager {
       }
       if (state === "CHANNEL_ERROR") {
         const message = err?.message ?? "";
-        if (tryPrivate && /unauthorized|permission/i.test(message)) {
+        if (tryPrivate && !fellBack && /unauthorized|permission/i.test(message)) {
           // Realtime Authorization policies not applied yet — fall back
           // to the public channel (payload is minimal by design).
+          fellBack = true;
+          privateChannelRejected = true;
+          this.channel = null; // supersede before async teardown
           void supabase.removeChannel(channel).then(() => {
             if (!this.disposed) void this.subscribeChannel(false);
           });
