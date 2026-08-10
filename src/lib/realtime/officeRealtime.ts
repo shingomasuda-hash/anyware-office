@@ -40,6 +40,12 @@ const TOPIC = "office:v1";
  * straight to the public fallback instead of re-erroring.
  */
 let privateChannelRejected = false;
+
+/** Self-heal when the channel is not live for this long (ms). Covers
+ * server-side phx_close (which realtime-js does not rejoin), dropped
+ * sockets, and any teardown race. */
+const WATCHDOG_INTERVAL_MS = 3000;
+const WATCHDOG_STALE_MS = 8000;
 /** ~12.5 broadcasts/second ceiling — well under Realtime limits. */
 const SEND_INTERVAL_MS = 80;
 /** Lerp aggressiveness for remote avatars (per second). */
@@ -57,6 +63,9 @@ export class OfficeRealtimeManager {
   private tracked = false;
 
   private sendTimer: number | null = null;
+  private watchdogTimer: number | null = null;
+  /** Last time we were live OR started a (re)subscribe attempt. */
+  private lastHealthyAt = 0;
   private lastSent: { x: number; y: number; direction: string; areaId: AreaId | null } | null =
     null;
   private sentTimestamps: number[] = [];
@@ -80,6 +89,27 @@ export class OfficeRealtimeManager {
     // channels; harmless on public ones).
     await supabase.realtime.setAuth();
     await this.subscribeChannel(!privateChannelRejected);
+    this.startWatchdog();
+  }
+
+  /**
+   * Reconnect safety net: if the channel stays non-live too long —
+   * server-side close, socket drop, failed rejoin — rebuild it. Presence
+   * re-track happens automatically on the next SUBSCRIBED callback.
+   */
+  private startWatchdog() {
+    if (this.watchdogTimer !== null) return;
+    this.lastHealthyAt = Date.now();
+    this.watchdogTimer = window.setInterval(() => {
+      if (this.disposed) return;
+      if (this.status === "live") {
+        this.lastHealthyAt = Date.now();
+        return;
+      }
+      if (Date.now() - this.lastHealthyAt < WATCHDOG_STALE_MS) return;
+      this.lastHealthyAt = Date.now();
+      void this.subscribeChannel(!privateChannelRejected);
+    }, WATCHDOG_INTERVAL_MS);
   }
 
   /** Presence payload including the current position snapshot. */
@@ -146,9 +176,12 @@ export class OfficeRealtimeManager {
           fellBack = true;
           privateChannelRejected = true;
           this.channel = null; // supersede before async teardown
-          void supabase.removeChannel(channel).then(() => {
-            if (!this.disposed) void this.subscribeChannel(false);
-          });
+          void supabase
+            .removeChannel(channel)
+            .catch(() => {})
+            .then(() => {
+              if (!this.disposed) void this.subscribeChannel(false);
+            });
           return;
         }
         this.setStatus("connecting");
@@ -167,6 +200,10 @@ export class OfficeRealtimeManager {
   async dispose(): Promise<void> {
     this.disposed = true;
     this.stopPublishing();
+    if (this.watchdogTimer !== null) {
+      window.clearInterval(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
     if (this.rosterTimer !== null) {
       window.clearTimeout(this.rosterTimer);
       this.rosterTimer = null;

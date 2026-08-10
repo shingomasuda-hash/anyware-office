@@ -48,6 +48,11 @@ const DEBOUNCE_MS = 250;
  * onChange fires at most once per debounce window regardless of how many
  * tables changed.
  */
+/** postgres_changes live on their own topic: when the publication is not
+ * configured, the server closes that channel at join — which must never
+ * take the broadcast-notification path down with it. */
+const DATA_PG_TOPIC = "office:data:pg";
+
 export function subscribeOfficeDataChanges(onChange: () => void): () => void {
   const supabase = getSupabaseClient();
   // One socket must not join the same topic twice: clear the notify-only
@@ -55,7 +60,10 @@ export function subscribeOfficeDataChanges(onChange: () => void): () => void {
   // (dev StrictMode) before creating ours.
   notifyChannel = null;
   for (const stale of supabase.getChannels()) {
-    if (stale.topic === `realtime:${DATA_TOPIC}`) {
+    if (
+      stale.topic === `realtime:${DATA_TOPIC}` ||
+      stale.topic === `realtime:${DATA_PG_TOPIC}`
+    ) {
       void supabase.removeChannel(stale);
     }
   }
@@ -71,23 +79,26 @@ export function subscribeOfficeDataChanges(onChange: () => void): () => void {
     }, DEBOUNCE_MS);
   };
 
-  let channel: RealtimeChannel = supabase.channel(DATA_TOPIC, {
+  // Channel 1 — repository write notifications (always available).
+  const notify = supabase.channel(DATA_TOPIC, {
     config: { broadcast: { self: true } },
   });
+  notify.on("broadcast", { event: "db-change" }, trigger);
+  notify.subscribe();
+
+  // Channel 2 — postgres_changes (canonical; requires the migration's
+  // publication entries, harmlessly closed by the server otherwise).
+  let pg: RealtimeChannel = supabase.channel(DATA_PG_TOPIC);
   for (const table of SYNCED_TABLES) {
-    channel = channel.on(
-      "postgres_changes",
-      { event: "*", schema: "public", table },
-      trigger,
-    );
+    pg = pg.on("postgres_changes", { event: "*", schema: "public", table }, trigger);
   }
-  channel.on("broadcast", { event: "db-change" }, trigger);
-  channel.subscribe();
+  pg.subscribe();
 
   return () => {
     closed = true;
     if (debounce !== null) window.clearTimeout(debounce);
-    void supabase.removeChannel(channel);
+    void supabase.removeChannel(notify);
+    void supabase.removeChannel(pg);
   };
 }
 
