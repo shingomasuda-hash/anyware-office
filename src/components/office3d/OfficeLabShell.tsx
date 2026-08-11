@@ -184,13 +184,19 @@ export default function OfficeLabShell() {
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!e.isPrimary) return;
       const el = e.currentTarget;
-      const holdTimer = window.setTimeout(() => {
-        const st = steer.current;
-        if (st && !st.active) {
-          st.active = true;
-          steerVector(el, st.startX, st.startY);
-        }
-      }, 220);
+      // Hold-to-walk is a TOUCH gesture only; with a mouse, steering
+      // engages exclusively through dragging, so clicks stay clicks
+      // (avatar profile cards) no matter how long the button is held.
+      const holdTimer =
+        e.pointerType === "touch"
+          ? window.setTimeout(() => {
+              const st = steer.current;
+              if (st && !st.active) {
+                st.active = true;
+                steerVector(el, st.startX, st.startY);
+              }
+            }, 220)
+          : 0;
       steer.current = {
         id: e.pointerId,
         startX: e.clientX,
