@@ -379,18 +379,17 @@ export class OfficeRealtimeManager {
     player.lastEventAt = Date.now();
     if (player.meta.areaId !== event.areaId) {
       // Provisional status on area change: MEETING always overrides; on
-      // leaving MEETING the owner's next presence re-track delivers
-      // their real manual status.
-      player.meta = {
-        ...player.meta,
-        areaId: event.areaId,
-        status:
-          event.areaId === "MEETING"
-            ? "meeting"
-            : player.meta.status === "meeting"
-              ? "available"
-              : player.meta.status,
-      };
+      // leaving MEETING restore what they showed before entering. The
+      // owner's next presence re-track stays authoritative either way.
+      let status = player.meta.status;
+      if (event.areaId === "MEETING") {
+        if (status !== "meeting") player.preMeetingStatus = status;
+        status = "meeting";
+      } else if (status === "meeting") {
+        status = player.preMeetingStatus ?? "available";
+        player.preMeetingStatus = undefined;
+      }
+      player.meta = { ...player.meta, areaId: event.areaId, status };
       this.scheduleRosterNotify();
     }
   }

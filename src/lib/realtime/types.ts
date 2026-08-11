@@ -57,6 +57,12 @@ export interface RemotePlayer {
    * grace period instead of firing on the first empty snapshot.
    */
   missingSince?: number;
+  /**
+   * Status observed before a movement event put this player into the
+   * MEETING area — used as the provisional status when they walk out,
+   * until their next presence re-track delivers the authoritative one.
+   */
+  preMeetingStatus?: PresenceStatus;
 }
 
 /** What a renderer needs to draw one remote avatar this frame. */

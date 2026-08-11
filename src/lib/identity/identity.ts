@@ -5,10 +5,10 @@ import type { AreaId } from "@/types/office";
 // nothing here may import canvas, three.js, or React.
 
 /**
- * Presence status vocabulary.
- * - meeting is derived (inside the MEETING area) and always wins.
- * - away is derived from idleness unless a stronger manual mode is set.
- * - available / busy / focus are user-chosen.
+ * Presence status vocabulary. manualStatus (user-chosen), autoAway
+ * (idle-derived) and the MEETING override are separate inputs; only the
+ * derived effectiveStatus is published. "offline" is represented by
+ * absence from presence, never as a status value.
  */
 export type ManualStatus = "available" | "busy" | "focus" | "away";
 export type EffectiveStatus = ManualStatus | "meeting";
@@ -38,9 +38,12 @@ export const STATUS_COLORS: Record<EffectiveStatus, string> = {
 };
 
 /**
- * Resolve the status shown to others.
- * Priority: MEETING area > deliberate manual mode (busy/focus/away) >
- * idle-away > available.
+ * Resolve the status shown to others. manualStatus is never mutated by
+ * the derived states — leaving MEETING or becoming active always
+ * restores it.
+ *
+ * Priority: (offline = absent from presence) > meeting > auto-away >
+ * manualStatus.
  */
 export function effectiveStatus(
   manual: ManualStatus,
@@ -48,8 +51,8 @@ export function effectiveStatus(
   idle: boolean,
 ): EffectiveStatus {
   if (areaId === "MEETING") return "meeting";
-  if (manual !== "available") return manual;
-  return idle ? "away" : "available";
+  if (idle) return "away";
+  return manual;
 }
 
 /**
