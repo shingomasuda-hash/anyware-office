@@ -279,7 +279,12 @@ export function CoffeeTable({ position }: { position: [number, number, number] }
   );
 }
 
-/** Reception counter sized to the map counter rect — future front desk. */
+/**
+ * Reception module sized to the map counter rect. STEP 4.9.2: a quiet
+ * pearl "service pod" — pill silhouette with rounded ends and a soft
+ * light seam — that supports the hero core floating above it instead
+ * of dominating the arrival shot.
+ */
 export function Reception({
   cx,
   cz,
@@ -291,23 +296,30 @@ export function Reception({
   w: number;
   d: number;
 }) {
+  const bodyW = w - d * 0.9;
   return (
     <group position={[cx, 0, cz]}>
-      {/* clean white monolith body */}
-      <RoundedBox args={[w, 1.05, d]} radius={0.05} position={[0, 0.55, 0]} material={MAT.resinWhite} castShadow receiveShadow />
-      <RoundedBox args={[w + 0.14, 0.05, d + 0.14]} radius={0.02} position={[0, 1.1, 0]} material={MAT.matteSilver} castShadow />
-      {/* light lines: floating base glow + under-rim accent */}
-      <mesh material={MAT.neonCyan} position={[0, 0.07, d / 2 + 0.005]}>
-        <boxGeometry args={[w - 0.2, 0.025, 0.02]} />
+      {/* pill body: rounded slab + cylinder end caps */}
+      <RoundedBox args={[bodyW, 0.98, d]} radius={0.1} position={[0, 0.5, 0]} material={MAT.pearl} castShadow receiveShadow />
+      {[-bodyW / 2, bodyW / 2].map((ex) => (
+        <mesh key={ex} material={MAT.pearl} position={[ex, 0.5, 0]} castShadow>
+          <cylinderGeometry args={[d / 2, d / 2, 0.98, 20]} />
+        </mesh>
+      ))}
+      {/* brushed top ring + light seam */}
+      <RoundedBox args={[bodyW + 0.05, 0.045, d + 0.05]} radius={0.02} position={[0, 1.03, 0]} material={MAT.brushed} castShadow />
+      <mesh material={MAT.neonCyan} position={[0, 0.82, d / 2 + 0.012]}>
+        <boxGeometry args={[bodyW - 0.1, 0.018, 0.018]} />
       </mesh>
-      <mesh material={MAT.neonCyan} position={[0, 1.065, d / 2 + 0.06]}>
-        <boxGeometry args={[w + 0.1, 0.014, 0.014]} />
+      {/* floating base shadow gap glow */}
+      <mesh material={MAT.neonWhite} position={[0, 0.05, d / 2 + 0.006]}>
+        <boxGeometry args={[bodyW - 0.3, 0.02, 0.014]} />
       </mesh>
       {/* inner working top + monitor */}
       <mesh material={MAT.white} position={[0, 0.78, d / 2 + 0.18]}>
-        <boxGeometry args={[w * 0.7, 0.04, 0.35]} />
+        <boxGeometry args={[bodyW * 0.6, 0.04, 0.35]} />
       </mesh>
-      <Monitor position={[w * 0.18, 0.8, d / 2 + 0.2]} rotationY={Math.PI} />
+      <Monitor position={[bodyW * 0.16, 0.8, d / 2 + 0.2]} rotationY={Math.PI} />
     </group>
   );
 }

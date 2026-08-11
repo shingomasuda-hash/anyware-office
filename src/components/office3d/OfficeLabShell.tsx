@@ -173,6 +173,7 @@ export default function OfficeLabShell() {
                 onPickPerson={handleSelectPerson}
                 onPickSelf={() => setCardUserId(user.id)}
                 onReady={() => setReady(true)}
+                isMobile={isMobile}
               />
             </div>
           </CanvasErrorBoundary>

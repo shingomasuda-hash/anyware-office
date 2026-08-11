@@ -30,25 +30,30 @@ declare global {
   }
 }
 
-function CameraRig({ sim }: { sim: LabSim }) {
+function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
   const camera = useThree((s) => s.camera);
   const vDesired = useMemo(() => new THREE.Vector3(), []);
   const vLook = useMemo(() => new THREE.Vector3(), []);
   const first = useRef(true);
   const lastT = useRef(performance.now());
+  // Mobile rides a little higher and further back so the tall viewport
+  // shows the world's depth instead of a giant avatar (§23).
+  const camY = isMobile ? 3.9 : 3.15;
+  const camZ = isMobile ? 4.9 : 3.9;
+  const lookZ = isMobile ? -2.4 : -1.7;
   useFrame(() => {
     const now = performance.now();
     const dt = Math.min((now - lastT.current) / 1000, 0.3);
     lastT.current = now;
     const [x, , z] = worldTo3D(sim.avatar.x, sim.avatar.y);
-    vDesired.set(x, 3.15, z + 3.9);
+    vDesired.set(x, camY, z + camZ);
     if (first.current) {
       camera.position.copy(vDesired);
       first.current = false;
     } else {
       camera.position.lerp(vDesired, 1 - Math.exp(-4.5 * dt));
     }
-    vLook.set(x, 1.05, z - 1.7);
+    vLook.set(x, 1.05, z + lookZ);
     camera.lookAt(vLook);
   });
   return null;
@@ -236,6 +241,7 @@ export default function Office3DCanvas({
   onPickPerson,
   onPickSelf,
   onReady,
+  isMobile = false,
 }: {
   sim: LabSim;
   user: CurrentUser;
@@ -244,6 +250,7 @@ export default function Office3DCanvas({
   onPickPerson: (userId: string) => void;
   onPickSelf: () => void;
   onReady: () => void;
+  isMobile?: boolean;
 }) {
   const [dpr, setDpr] = useState<number>(() =>
     Math.min(typeof window !== "undefined" ? window.devicePixelRatio : 1, 2),
@@ -265,7 +272,7 @@ export default function Office3DCanvas({
     <Canvas
       shadows
       dpr={dpr}
-      camera={{ fov: 50, near: 0.2, far: 140, position: [22, 3.7, 32] }}
+      camera={{ fov: isMobile ? 56 : 50, near: 0.2, far: 140, position: [22, 3.7, 32] }}
       gl={{ antialias: true, powerPreference: "high-performance" }}
       style={{ touchAction: "none" }}
       onCreated={({ scene }) => {
@@ -276,7 +283,7 @@ export default function Office3DCanvas({
       <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(Math.min(window.devicePixelRatio, 2))}>
         <Lights />
         <World sim={sim} />
-        <CameraRig sim={sim} />
+        <CameraRig sim={sim} isMobile={isMobile} />
         <LabInstruments sim={sim} />
         <AvatarMesh
           identity={localIdentity}

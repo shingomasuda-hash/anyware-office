@@ -53,6 +53,20 @@ export const MAT = {
   // furniture — clean resin / matte metal modules
   resinWhite: std({ color: "#f4f5f6", roughness: 0.3 }),
   matteSilver: std({ color: "#c3c9d2", roughness: 0.3, metalness: 0.6 }),
+  pearl: new THREE.MeshPhysicalMaterial({
+    color: "#f7f9fb",
+    roughness: 0.22,
+    metalness: 0.12,
+    clearcoat: 0.7,
+    clearcoatRoughness: 0.35,
+  }),
+  brushed: std({ color: "#aeb8c4", roughness: 0.5, metalness: 0.85 }),
+  coreGlow: basic("#dff2ff", {
+    transparent: true,
+    opacity: 0.16,
+    toneMapped: false,
+    depthWrite: false,
+  }),
   woodTop: std({ color: "#d9bd94", roughness: 0.5 }),
   woodDark: std({ color: "#b3a07f", roughness: 0.55 }),
   metalLeg: std({ color: "#9aa2ad", roughness: 0.3, metalness: 0.7 }),
