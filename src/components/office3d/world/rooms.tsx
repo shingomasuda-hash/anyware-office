@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { AREA_BY_ID } from "@/lib/game/map";
 import type { AreaId } from "@/types/office";
+import type { LabSim } from "../LabSim";
 import { MAT, makeTextTexture } from "./materials";
 import { u } from "./scale";
 import { TwoSidedSign } from "./effects";
@@ -492,11 +493,33 @@ function RoomProps({
 export function RoomIdentity({
   area,
   bounds,
+  sim,
 }: {
   area: AreaId;
   bounds: { x: number; y: number; w: number; h: number };
+  sim: LabSim;
 }) {
   const theme = ROOM_THEMES[area];
+  // Distance gate: a district's furnishing only draws while the player
+  // is in or near it. Ten fully dressed rooms at once cost draw calls
+  // nobody can see — this keeps the far side of the hall cheap, which
+  // matters most on mobile.
+  const props = useRef<THREE.Group>(null);
+  const near = useRef(true);
+  useFrame(() => {
+    const g = props.current;
+    if (!g) return;
+    const cx0 = bounds.x + bounds.w / 2;
+    const cy0 = bounds.y + bounds.h / 2;
+    const dx = sim.avatar.x - cx0;
+    const dy = sim.avatar.y - cy0;
+    const reach = Math.max(bounds.w, bounds.h) * 0.5 + 520;
+    const visible = dx * dx + dy * dy < reach * reach;
+    if (visible !== near.current) {
+      near.current = visible;
+      g.visible = visible;
+    }
+  });
   const rail = useMemo(
     () => new THREE.MeshBasicMaterial({ color: theme.accent, toneMapped: false }),
     [theme.accent],
@@ -507,9 +530,11 @@ export function RoomIdentity({
   const d = u(bounds.h);
   return (
     <group>
-      <RoomEmblem area={area} x={cx} z={cz} y={4.6} />
       <RoomBanner area={area} x={cx} z={u(bounds.y) + 0.35} />
-      <RoomProps area={area} bounds={bounds} />
+      <group ref={props}>
+        <RoomEmblem area={area} x={cx} z={cz} y={4.6} />
+        <RoomProps area={area} bounds={bounds} />
+      </group>
       {/* perimeter light rail just above the baseboard */}
       {[
         { p: [cx, 0.62, u(bounds.y) + 0.3] as const, s: [w - 1.2, 0.06, 0.06] as const },

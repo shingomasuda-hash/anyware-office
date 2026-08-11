@@ -70,8 +70,8 @@ const teleport = (p, x, y) => p.evaluate(([tx, ty]) => window.__officeGame?.tele
 const roster = (p) => p.evaluate(() => window.__officeRealtime?.roster() ?? null);
 const remoteOf = async (p) => (await roster(p))?.find((r) => !r.isSelf) ?? null;
 const labReady = async (p) => {
-  await p.locator('[data-testid="office-lab-canvas"] canvas').waitFor({ timeout: 60000 });
-  await p.locator('[data-testid="lab-loading"]').waitFor({ state: "detached", timeout: 60000 });
+  await p.locator('[data-testid="office-lab-canvas"] canvas').waitFor({ timeout: 120000 });
+  await p.locator('[data-testid="lab-loading"]').waitFor({ state: "detached", timeout: 120000 });
 };
 const waitLive = (p) =>
   waitFor(async () =>

@@ -699,7 +699,7 @@ function WorldImpl({ sim }: { sim: LabSim }) {
       <MassingFurniture />
       {/* district character: emblem, banner and accent rail per room */}
       {AREAS.filter((a) => a.id !== "ENTRANCE").map((a) => (
-        <RoomIdentity key={a.id} area={a.id} bounds={a.bounds} />
+        <RoomIdentity key={a.id} area={a.id} bounds={a.bounds} sim={sim} />
       ))}
       <AreaGateways sim={sim} />
       <RooftopBillboards sim={sim} />
