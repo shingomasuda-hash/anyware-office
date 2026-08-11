@@ -42,14 +42,14 @@ function CameraRig({ sim }: { sim: LabSim }) {
   const first = useRef(true);
   useFrame((_, dt) => {
     const [x, , z] = worldTo3D(sim.avatar.x, sim.avatar.y);
-    vDesired.set(x, 3.7, z + 4.5);
+    vDesired.set(x, 3.15, z + 3.9);
     if (first.current) {
       camera.position.copy(vDesired);
       first.current = false;
     } else {
       camera.position.lerp(vDesired, 1 - Math.exp(-4.5 * Math.min(dt, 0.1)));
     }
-    vLook.set(x, 1.0, z - 1.6);
+    vLook.set(x, 1.05, z - 1.7);
     camera.lookAt(vLook);
   });
   return null;
@@ -72,8 +72,8 @@ function Lights() {
         intensity={1.5}
         color="#fff2df"
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
         shadow-camera-left={-30}
         shadow-camera-right={30}
         shadow-camera-top={28}
@@ -227,7 +227,7 @@ export default function Office3DCanvas({
     >
       <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(Math.min(window.devicePixelRatio, 2))}>
         <Lights />
-        <World />
+        <World sim={sim} />
         <SimDriver sim={sim} />
         <CameraRig sim={sim} />
         <LabInstruments sim={sim} />

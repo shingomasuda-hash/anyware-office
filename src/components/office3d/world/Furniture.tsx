@@ -291,14 +291,14 @@ export function Reception({
 export function Pendant({ position }: { position: [number, number, number] }) {
   return (
     <group position={position}>
-      <mesh material={MAT.charcoal}>
-        <cylinderGeometry args={[0.01, 0.01, 1.0, 4]} />
+      <mesh material={MAT.metalLeg} position={[0, -0.2, 0]}>
+        <cylinderGeometry args={[0.008, 0.008, 0.5, 4]} />
       </mesh>
-      <mesh material={MAT.charcoal} position={[0, -0.55, 0]}>
-        <cylinderGeometry args={[0.16, 0.11, 0.16, 12, 1, true]} />
+      <mesh material={MAT.charcoal} position={[0, -0.5, 0]}>
+        <cylinderGeometry args={[0.14, 0.09, 0.14, 14, 1, true]} />
       </mesh>
-      <mesh material={MAT.pendant} position={[0, -0.6, 0]}>
-        <sphereGeometry args={[0.07, 10, 8]} />
+      <mesh material={MAT.pendant} position={[0, -0.54, 0]}>
+        <sphereGeometry args={[0.06, 10, 8]} />
       </mesh>
     </group>
   );
@@ -316,22 +316,114 @@ export function Shelf({
   const colors = [MAT.fabricGreen, MAT.fabricWarm, MAT.charcoal, MAT.white];
   return (
     <group position={position} rotation-y={rotationY}>
-      <RoundedBox args={[width, 1.5, 0.32]} radius={0.02} position={[0, 0.75, 0]} material={MAT.woodDark} castShadow receiveShadow />
-      {[0.42, 0.88, 1.34].map((sy, row) => (
+      {/* thin back panel + side cheeks — books sit in FRONT of it */}
+      <mesh material={MAT.woodDark} position={[0, 0.75, -0.14]} castShadow receiveShadow>
+        <boxGeometry args={[width, 1.5, 0.05]} />
+      </mesh>
+      {[-width / 2 + 0.025, width / 2 - 0.025].map((sx) => (
+        <mesh key={sx} material={MAT.woodDark} position={[sx, 0.75, 0]}>
+          <boxGeometry args={[0.05, 1.5, 0.32]} />
+        </mesh>
+      ))}
+      {[0.06, 0.52, 0.98, 1.44].map((sy) => (
+        <mesh key={sy} material={MAT.woodTop} position={[0, sy, 0]}>
+          <boxGeometry args={[width - 0.08, 0.035, 0.3]} />
+        </mesh>
+      ))}
+      {[0.52, 0.98].map((sy, row) => (
         <group key={sy}>
-          <mesh material={MAT.woodTop} position={[0, sy - 0.07, 0.02]}>
-            <boxGeometry args={[width - 0.1, 0.03, 0.28]} />
-          </mesh>
-          {Array.from({ length: 4 }, (_, i) => (
+          {Array.from({ length: 5 }, (_, i) => (
             <mesh
               key={i}
               material={colors[(i + row) % colors.length]}
-              position={[-width / 2 + 0.25 + i * ((width - 0.5) / 3), sy + 0.08, 0.02]}
+              position={[
+                -width / 2 + 0.22 + i * ((width - 0.44) / 4),
+                sy + 0.15,
+                0.01,
+              ]}
+              castShadow
             >
-              <boxGeometry args={[0.16, 0.24, 0.2]} />
+              <boxGeometry args={[0.14, 0.26, 0.18]} />
             </mesh>
           ))}
         </group>
+      ))}
+      {/* top row: plant + binder box */}
+      <mesh material={MAT.potDark} position={[-width / 4, 1.52, 0]}>
+        <cylinderGeometry args={[0.08, 0.1, 0.14, 8]} />
+      </mesh>
+      <mesh material={MAT.leaf} position={[-width / 4, 1.68, 0]}>
+        <icosahedronGeometry args={[0.12, 1]} />
+      </mesh>
+      <mesh material={MAT.white} position={[width / 4, 1.55, 0]}>
+        <boxGeometry args={[0.3, 0.18, 0.2]} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Slim laptop + paper props for meeting tables. */
+export function TableProps({
+  position,
+  rotationY = 0,
+}: {
+  position: [number, number, number];
+  rotationY?: number;
+}) {
+  return (
+    <group position={position} rotation-y={rotationY}>
+      <mesh material={MAT.charcoal} position={[0, 0.012, 0]} castShadow>
+        <boxGeometry args={[0.3, 0.018, 0.21]} />
+      </mesh>
+      <mesh material={MAT.charcoal} position={[0, 0.1, -0.1]} rotation-x={-1.85}>
+        <boxGeometry args={[0.3, 0.008, 0.2]} />
+      </mesh>
+      <mesh material={MAT.screenDark} position={[0, 0.1, -0.096]} rotation-x={-1.85}>
+        <planeGeometry args={[0.27, 0.17]} />
+      </mesh>
+      <mesh material={MAT.white} position={[0.32, 0.01, 0.05]} rotation-y={0.3}>
+        <boxGeometry args={[0.21, 0.006, 0.29]} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Freestanding whiteboard (visual only, placed against walls). */
+export function WhiteBoard({
+  position,
+  rotationY = 0,
+}: {
+  position: [number, number, number];
+  rotationY?: number;
+}) {
+  return (
+    <group position={position} rotation-y={rotationY}>
+      <RoundedBox args={[1.7, 1.05, 0.05]} radius={0.02} position={[0, 1.35, 0]} material={MAT.white} castShadow />
+      <mesh material={MAT.windowFrame} position={[0, 1.35, -0.01]}>
+        <boxGeometry args={[1.78, 1.13, 0.03]} />
+      </mesh>
+      {/* marker strokes */}
+      <mesh position={[-0.3, 1.5, 0.028]}>
+        <planeGeometry args={[0.7, 0.03]} />
+        <meshBasicMaterial color="#4a7dbf" />
+      </mesh>
+      <mesh position={[-0.15, 1.34, 0.028]}>
+        <planeGeometry args={[0.95, 0.03]} />
+        <meshBasicMaterial color="#8a8f98" />
+      </mesh>
+      <mesh position={[0.25, 1.18, 0.028]}>
+        <planeGeometry args={[0.5, 0.03]} />
+        <meshBasicMaterial color="#3fa66a" />
+      </mesh>
+      {[-0.6, 0.6].map((lx) => (
+        <mesh key={lx} material={MAT.metalLeg} position={[lx, 0.55, 0]}>
+          <boxGeometry args={[0.05, 1.35, 0.05]} />
+        </mesh>
+      ))}
+      {[-0.6, 0.6].map((lx) => (
+        <mesh key={lx} material={MAT.metalLeg} position={[lx, 0.03, 0]}>
+          <boxGeometry args={[0.09, 0.05, 0.42]} />
+        </mesh>
       ))}
     </group>
   );

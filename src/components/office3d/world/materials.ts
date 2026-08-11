@@ -36,7 +36,7 @@ export const MAT = {
   floorWood: std({ color: "#b98f5f", roughness: 0.55 }),
   floorCarpet: std({ color: "#9aa4a8", roughness: 1 }),
   floorMassing: std({ color: "#d5d2ca", roughness: 0.9 }),
-  rug: std({ color: "#7f8b8f", roughness: 1 }),
+  rug: std({ color: "#a8998a", roughness: 1 }),
   grass: std({ color: "#8fae7e", roughness: 1 }),
 
   // furniture

@@ -1,7 +1,9 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import type { LabSim } from "../LabSim";
 import {
   AREA_BY_ID,
   AREAS,
@@ -16,7 +18,6 @@ import {
   CoffeeTable,
   DeskBank,
   MeetingTable,
-  Monitor,
   Pendant,
   PlantSmall,
   PlantTall,
@@ -24,6 +25,8 @@ import {
   Rug,
   Shelf,
   Sofa,
+  TableProps,
+  WhiteBoard,
 } from "./Furniture";
 import { MAT, makeTextTexture } from "./materials";
 import { rectTo3D, u, WALL_HEIGHT_M } from "./scale";
@@ -44,14 +47,22 @@ const FLOOR_MAT: Partial<Record<AreaId, THREE.Material>> = {
 type WallKind = "outer" | "meetingGlass" | "solid";
 
 function classifyWall(r: Rect): WallKind {
-  const touchesEdge =
-    r.x <= 0 || r.y <= 0 || r.x + r.w >= WORLD.w || r.y + r.h >= WORLD.h;
-  if (touchesEdge) return "outer";
   const m = AREA_BY_ID.MEETING.bounds;
   const inMeeting =
     r.x >= m.x - 1 && r.x + r.w <= m.x + m.w + 1 && r.y >= m.y - 1 && r.y + r.h <= m.y + m.h + 1;
+  const meetingNorth = inMeeting && Math.abs(r.y - m.y) < 1 && r.h === WALL_T;
   // North edge of MEETING stays solid — it carries the wall display.
-  if (inMeeting && !(Math.abs(r.y - m.y) < 1 && r.h === WALL_T)) return "meetingGlass";
+  if (meetingNorth) return "solid";
+  // World-boundary walls AND room walls hugging the boundary render as
+  // window walls, so perimeter rooms get daylight instead of gray backs.
+  const margin = WALL_T * 2 + 4;
+  const nearEdge =
+    r.x <= margin ||
+    r.y <= margin ||
+    r.x + r.w >= WORLD.w - margin ||
+    r.y + r.h >= WORLD.h - margin;
+  if (nearEdge) return "outer";
+  if (inMeeting) return "meetingGlass";
   return "solid";
 }
 
@@ -241,22 +252,55 @@ function Floors() {
   );
 }
 
-function Walls() {
+/**
+ * Camera-occlusion (§23): the third-person camera sits south of the
+ * avatar with a fixed yaw, so any east-west wall between the avatar and
+ * the camera would fill the screen. Those segments hide while occluding
+ * (dollhouse-style) and pop back as soon as the player walks away.
+ */
+function Walls({ sim }: { sim: LabSim }) {
   const classified = useMemo(
     () => WALLS.map((r) => ({ r, kind: classifyWall(r) })),
     [],
   );
+  const refs = useRef<Array<THREE.Group | null>>([]);
+  useFrame(() => {
+    const ay = sim.avatar.y;
+    const ax = sim.avatar.x;
+    for (let i = 0; i < classified.length; i++) {
+      const g = refs.current[i];
+      if (!g) continue;
+      const { r } = classified[i];
+      const horizontal = r.h === WALL_T && r.w > r.h;
+      if (!horizontal) continue;
+      // Wall between avatar and camera (camera ≈ avatar.y + 180u) and
+      // horizontally near the view corridor → hide.
+      const occludes =
+        r.y > ay + 8 &&
+        r.y < ay + 230 &&
+        r.x < ax + 340 &&
+        r.x + r.w > ax - 340;
+      g.visible = !occludes;
+    }
+  });
   return (
     <group>
-      {classified.map(({ r, kind }, i) =>
-        kind === "outer" ? (
-          <OuterWall key={i} r={r} />
-        ) : kind === "meetingGlass" ? (
-          <GlassWall key={i} r={r} />
-        ) : (
-          <SolidWall key={i} r={r} />
-        ),
-      )}
+      {classified.map(({ r, kind }, i) => (
+        <group
+          key={i}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
+        >
+          {kind === "outer" ? (
+            <OuterWall r={r} />
+          ) : kind === "meetingGlass" ? (
+            <GlassWall r={r} />
+          ) : (
+            <SolidWall r={r} />
+          )}
+        </group>
+      ))}
     </group>
   );
 }
@@ -299,7 +343,17 @@ function RoundedMass({ cx, cz, w, d, h }: { cx: number; cz: number; w: number; d
   );
 }
 
-function AreaSign({ area, position }: { area: AreaId; position: [number, number, number] }) {
+function AreaSign({
+  area,
+  position,
+  sim,
+  posts = false,
+}: {
+  area: AreaId;
+  position: [number, number, number];
+  sim: LabSim;
+  posts?: boolean;
+}) {
   const tex = useMemo(
     () =>
       makeTextTexture(
@@ -311,12 +365,41 @@ function AreaSign({ area, position }: { area: AreaId; position: [number, number,
       ),
     [area],
   );
-  return <TextPanel position={position} width={2.4} height={0.75} texture={tex} />;
+  const group = useRef<THREE.Group>(null);
+  // Same occlusion rule as walls: never let the sign sit between the
+  // south-anchored camera and the avatar.
+  const signYUnits = position[2] / 0.025;
+  const signXUnits = position[0] / 0.025;
+  useFrame(() => {
+    const g = group.current;
+    if (!g) return;
+    const occludes =
+      signYUnits > sim.avatar.y + 8 &&
+      signYUnits < sim.avatar.y + 230 &&
+      Math.abs(signXUnits - sim.avatar.x) < 340;
+    g.visible = !occludes;
+  });
+  return (
+    <group ref={group}>
+      <TextPanel position={position} width={2.4} height={0.75} texture={tex} />
+      {posts
+        ? [-1.05, 1.05].map((px) => (
+            <mesh
+              key={px}
+              material={MAT.windowFrame}
+              position={[position[0] + px, position[1] / 2 - 0.19, position[2]]}
+            >
+              <boxGeometry args={[0.05, position[1] - 0.38, 0.05]} />
+            </mesh>
+          ))
+        : null}
+    </group>
+  );
 }
 
 // ── detailed areas ───────────────────────────────────────────────────
 
-function EntranceArea() {
+function EntranceArea({ sim }: { sim: LabSim }) {
   const b = AREA_BY_ID.ENTRANCE.bounds; // 680,800 400x384
   const counter = FURNITURE.find((f) => f.kind === "counter")!;
   const c = rectTo3D(counter.rect);
@@ -333,20 +416,26 @@ function EntranceArea() {
     [],
   );
   const east = u(b.x + b.w) - 0.6;
-  const south = u(b.y + b.h) - 0.55;
   return (
     <group>
       <Reception cx={c.cx} cz={c.cz} w={c.w} d={c.d} />
       {[c.cx - 1.1, c.cx + 1.1].map((px) => (
-        <Pendant key={px} position={[px, 2.55, c.cz]} />
+        <Pendant key={px} position={[px, 2.4, c.cz]} />
       ))}
-      {/* brand wall on the south face */}
-      <TextPanel position={[u(b.x + b.w / 2), 1.5, south]} rotationY={Math.PI} width={4.6} height={2.2} texture={brandTex} />
+      {/* brand wall on the west face — always in view while walking in,
+          and never between the south-anchored camera and the avatar */}
+      <TextPanel
+        position={[u(b.x) + 0.55, 1.5, u(990)]}
+        rotationY={Math.PI / 2}
+        width={4.4}
+        height={2.1}
+        texture={brandTex}
+      />
       {/* waiting corner against the east wall */}
       <Rug position={[east - 1.2, 0.02, u(1060)]} radius={1.5} />
       <Sofa position={[east - 0.55, 0, u(1060)]} rotationY={-Math.PI / 2} width={2.2} />
       <CoffeeTable position={[east - 1.9, 0, u(1060)]} />
-      <PlantTall position={[east - 0.5, 0, u(980)]} />
+      <PlantTall position={[east - 0.5, 0, u(980)]} scale={0.85} />
       {/* map plants (collision-linked) */}
       {FURNITURE.filter(
         (f) => f.kind === "plant" && f.rect.y > 900 && f.rect.x > 1000,
@@ -355,13 +444,13 @@ function EntranceArea() {
         return <PlantTall key={i} position={[p.cx, 0, p.cz]} />;
       })}
       {/* hanging sign at the open corridor edge */}
-      <AreaSign area="ENTRANCE" position={[u(880), 2.25, u(806)]} />
+      <AreaSign area="ENTRANCE" position={[u(880), 2.25, u(806)]} sim={sim} posts />
       <PlantSmall position={[c.cx - c.w / 2 - 0.5, 0, c.cz + 0.2]} />
     </group>
   );
 }
 
-function StaffArea() {
+function StaffArea({ sim }: { sim: LabSim }) {
   const b = AREA_BY_ID.STAFF.bounds; // 16,16 346x400
   const desks = FURNITURE.filter(
     (f) => f.kind === "desk" && f.rect.x < 362 && f.rect.y < 416,
@@ -384,12 +473,15 @@ function StaffArea() {
         return <PlantTall key={i} position={[p.cx, 0, p.cz]} scale={0.9} />;
       })}
       <PlantSmall position={[u(40), 0, u(380)]} />
-      <AreaSign area="STAFF" position={[u(189), 2.25, u(416) + 0.09]} />
+      <Rug position={[u(255), 0.02, u(210)]} radius={1.7} />
+      <WhiteBoard position={[u(346) - 0.35, 0, u(150)]} rotationY={-Math.PI / 2} />
+      <PlantSmall position={[u(330), 0, u(60)]} />
+      <AreaSign area="STAFF" position={[u(189), 2.25, u(416) + 0.09]} sim={sim} />
     </group>
   );
 }
 
-function MeetingArea() {
+function MeetingArea({ sim }: { sim: LabSim }) {
   const tables = FURNITURE.filter((f) => f.kind === "table" && f.rect.y < 416);
   const b = AREA_BY_ID.MEETING.bounds;
   const screenTex = useMemo(
@@ -417,7 +509,13 @@ function MeetingArea() {
     <group>
       {tables.map((f, i) => {
         const p = rectTo3D(f.rect);
-        return <MeetingTable key={i} cx={p.cx} cz={p.cz} w={p.w} d={p.d} />;
+        return (
+          <group key={i}>
+            <MeetingTable cx={p.cx} cz={p.cz} w={p.w} d={p.d} />
+            <TableProps position={[p.cx - 0.5, 0.775, p.cz + 0.15]} rotationY={0.4} />
+            <TableProps position={[p.cx + 0.55, 0.775, p.cz - 0.12]} rotationY={Math.PI - 0.3} />
+          </group>
+        );
       })}
       {/* large display on the solid north wall */}
       <group position={[u(b.x + b.w / 2), 1.55, u(b.y) + 0.45]}>
@@ -430,21 +528,21 @@ function MeetingArea() {
       </group>
       <PlantTall position={[u(b.x) + 0.7, 0, u(b.y) + 0.8]} />
       <PlantTall position={[u(b.x + b.w) - 0.7, 0, u(b.y + b.h) - 0.9]} scale={0.9} />
-      <AreaSign area="MEETING" position={[u(1227), 2.25, u(416) + 0.09]} />
+      <AreaSign area="MEETING" position={[u(1227), 2.25, u(416) + 0.09]} sim={sim} />
     </group>
   );
 }
 
-function WorldImpl() {
+function WorldImpl({ sim }: { sim: LabSim }) {
   return (
     <group>
       <Exterior />
       <Floors />
-      <Walls />
+      <Walls sim={sim} />
       <MassingFurniture />
-      <EntranceArea />
-      <StaffArea />
-      <MeetingArea />
+      <EntranceArea sim={sim} />
+      <StaffArea sim={sim} />
+      <MeetingArea sim={sim} />
     </group>
   );
 }
