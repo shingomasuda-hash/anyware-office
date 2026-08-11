@@ -137,9 +137,12 @@ try {
   await sleep(300);
   await A.keyboard.up("s");
   const c0 = await snap(A);
-  await A.keyboard.down("w"); // walk north into the reception counter
+  // Input is camera-relative now: after the southward tap the camera
+  // parks behind the south-facing avatar, so "press back" (s) turns
+  // around and walks NORTH into the reception counter.
+  await A.keyboard.down("s");
   await sleep(1200);
-  await A.keyboard.up("w");
+  await A.keyboard.up("s");
   const c1 = await snap(A);
   record("collision blocks at the reception counter", c1.y >= 976 - 14, `stopped y=${c1.y}`);
   // walls: run west into ENTRANCE west wall

@@ -145,6 +145,87 @@ export default function OfficeLabShell() {
     (x: number, y: number) => sim.setJoystick(x, y),
     [sim],
   );
+
+  // Touch/drag steering on the canvas: while the pointer is held past a
+  // small drag/hold threshold, the avatar walks toward it (relative to
+  // the avatar's on-screen anchor). Quick taps stay taps, so clicking
+  // an avatar still opens the profile card.
+  const steer = useRef<{
+    id: number;
+    startX: number;
+    startY: number;
+    active: boolean;
+    holdTimer: number;
+  } | null>(null);
+  const steerVector = useCallback(
+    (el: HTMLElement, clientX: number, clientY: number) => {
+      const r = el.getBoundingClientRect();
+      const ax = r.left + r.width / 2;
+      const ay = r.top + r.height * 0.58; // avatar sits below screen center
+      const dx = clientX - ax;
+      const dy = clientY - ay;
+      const len = Math.hypot(dx, dy);
+      if (len < 24) {
+        sim.setPointer(0, 0);
+        return;
+      }
+      const mag = Math.min(1, len / 140);
+      sim.setPointer((dx / len) * mag, (dy / len) * mag);
+    },
+    [sim],
+  );
+  const endSteer = useCallback(() => {
+    const st = steer.current;
+    if (st) window.clearTimeout(st.holdTimer);
+    steer.current = null;
+    sim.setPointer(0, 0);
+  }, [sim]);
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!e.isPrimary) return;
+      const el = e.currentTarget;
+      const holdTimer = window.setTimeout(() => {
+        const st = steer.current;
+        if (st && !st.active) {
+          st.active = true;
+          steerVector(el, st.startX, st.startY);
+        }
+      }, 220);
+      steer.current = {
+        id: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        active: false,
+        holdTimer,
+      };
+    },
+    [steerVector],
+  );
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const st = steer.current;
+      if (!st || st.id !== e.pointerId) return;
+      if (!st.active) {
+        if (Math.hypot(e.clientX - st.startX, e.clientY - st.startY) > 14) {
+          st.active = true;
+        } else {
+          return;
+        }
+      }
+      st.startX = e.clientX;
+      st.startY = e.clientY;
+      steerVector(e.currentTarget, e.clientX, e.clientY);
+    },
+    [steerVector],
+  );
+  const onPointerEnd = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const st = steer.current;
+      if (!st || st.id !== e.pointerId) return;
+      endSteer();
+    },
+    [endSteer],
+  );
   const openEditor = useCallback(() => {
     setCardUserId(null);
     setEditorOpen(true);
@@ -164,7 +245,15 @@ export default function OfficeLabShell() {
       <div className="relative h-[100dvh] w-full overflow-hidden overscroll-none bg-[#e9e4f5]">
         {supported && user ? (
           <CanvasErrorBoundary>
-            <div className="absolute inset-0" data-testid="office-lab-canvas">
+            <div
+              className="absolute inset-0"
+              data-testid="office-lab-canvas"
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerEnd}
+              onPointerCancel={onPointerEnd}
+              onPointerLeave={onPointerEnd}
+            >
               <Office3DCanvas
                 sim={sim}
                 user={user}
