@@ -118,12 +118,14 @@ export default function OfficeLabShell() {
   // Fixed-timestep simulation on the wall clock — movement speed must
   // not depend on render FPS (weak GPUs render slower; they must not
   // WALK slower). Sub-steps stay ≤50ms so collision behaves exactly
-  // like the 2D engine.
+  // like the 2D engine. The 1.5s catch-up ceiling covers main-thread
+  // stalls from slow renderers without unbounded replay after a long
+  // suspension (keys are cleared on blur, so replay is input-bounded).
   useEffect(() => {
     let last = performance.now();
     const id = window.setInterval(() => {
       const now = performance.now();
-      let elapsed = Math.min((now - last) / 1000, 0.3);
+      let elapsed = Math.min((now - last) / 1000, 1.5);
       last = now;
       while (elapsed > 0) {
         const step = Math.min(elapsed, 0.05);
