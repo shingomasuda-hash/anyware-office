@@ -91,6 +91,32 @@ function Lights() {
   );
 }
 
+/**
+ * Compiles every material/shader once the scene graph has mounted,
+ * then signals readiness. Keeping the loading overlay up until shaders
+ * are warm means the first real frame — and the first keyboard input —
+ * never lands in the middle of a long compile stall (worst on software
+ * renderers, but a visible hitch on real GPUs too).
+ */
+function PrecompileGate({ onReady }: { onReady: () => void }) {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  useEffect(() => {
+    let cancelled = false;
+    // Defer one tick so the whole world subtree is mounted first.
+    const id = window.setTimeout(() => {
+      gl.compile(scene, camera);
+      if (!cancelled) onReady();
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+  }, [gl, scene, camera, onReady]);
+  return null;
+}
+
 /** Registers the world→screen projector + dev stats (§41). */
 function LabInstruments({ sim }: { sim: LabSim }) {
   const camera = useThree((s) => s.camera);
@@ -232,7 +258,6 @@ export default function Office3DCanvas({
       onCreated={({ scene }) => {
         scene.background = new THREE.Color(SKY);
         scene.fog = new THREE.Fog(SKY, 42, 125);
-        onReady();
       }}
     >
       <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(Math.min(window.devicePixelRatio, 2))}>
@@ -247,6 +272,7 @@ export default function Office3DCanvas({
           onClick={onPickSelf}
         />
         <RemoteAvatars sim={sim} roster={roster} onPickPerson={onPickPerson} />
+        <PrecompileGate onReady={onReady} />
       </PerformanceMonitor>
     </Canvas>
   );

@@ -222,6 +222,9 @@ try {
   record("A: projector resolves B avatar screen pos", Boolean(bPos));
   // Re-project before every click (remote avatar interpolates toward its
   // target, so a stale projection misses) and sweep torso-height offsets.
+  // Per-attempt wait is generous: under software WebGL a click→React
+  // render round-trip can take several seconds, and clicking again
+  // while the card is opening would close it.
   let cardUp = false;
   for (const dy of [-40, -20, -55, 0, -70]) {
     const p = await A.evaluate(() => {
@@ -232,7 +235,7 @@ try {
     if (!p) continue;
     await A.mouse.click(p.x, p.y + dy);
     cardUp = await A.locator('[data-testid="profile-card"]')
-      .waitFor({ timeout: 2500 }).then(() => true).catch(() => false);
+      .waitFor({ timeout: 7000 }).then(() => true).catch(() => false);
     if (cardUp) break;
   }
   record("A: click B 3D avatar → profile card", cardUp);
@@ -251,10 +254,11 @@ try {
     (await A.locator('[data-testid="profile-card"]').textContent().catch(() => "")).includes("YOU"));
   await A.keyboard.press("Escape");
 
-  // screenshots: entrance + remote user (D) and mobile (E)
+  // screenshots: entrance + remote user (D) and mobile (E) — long
+  // timeouts, software rendering needs several seconds per frame here
   await sleep(600);
-  await A.screenshot({ path: "lab-two-users.png" });
-  await B.screenshot({ path: "lab-mobile.png" });
+  await A.screenshot({ path: "lab-two-users.png", timeout: 90000 });
+  await B.screenshot({ path: "lab-mobile.png", timeout: 90000 });
 
   // mobile: no horizontal scroll
   const scrollB = await B.evaluate(() => ({ doc: document.documentElement.scrollWidth, inner: window.innerWidth }));
