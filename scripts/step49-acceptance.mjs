@@ -106,8 +106,13 @@ try {
   record("A: WebGL lab canvas loads (member/admin route)", true);
   record("A: realtime LIVE in lab", Boolean(await waitLive(A)));
 
-  // movement + collision (same sim contract as 2D)
+  // movement + collision (same sim contract as 2D). Before the first
+  // keypress, wait until frames are actually flowing — a real user
+  // can't press a key before the first frame is on screen, and under
+  // software WebGL the first frames arrive seconds after "ready".
   console.log("\n=== MOVEMENT / COLLISION / AREAS ===");
+  await waitFor(async () =>
+    (await A.evaluate(() => window.__officeLab?.stats()?.fps ?? 0)) > 0, 30000, 500);
   const s0 = await snap(A);
   await A.keyboard.down("w");
   await sleep(900);

@@ -107,6 +107,19 @@ function PrecompileGate({ onReady }: { onReady: () => void }) {
     // Defer one tick so the whole world subtree is mounted first.
     const id = window.setTimeout(() => {
       gl.compile(scene, camera);
+      // gl.compile links programs but does not upload textures; push
+      // every map to the GPU now so the first visible frame doesn't
+      // stall on dozens of canvas-texture uploads.
+      scene.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const mat of mats) {
+          const m = mat as THREE.MeshStandardMaterial;
+          if (m.map) gl.initTexture(m.map);
+          if (m.emissiveMap) gl.initTexture(m.emissiveMap);
+        }
+      });
       if (!cancelled) onReady();
     }, 0);
     return () => {
