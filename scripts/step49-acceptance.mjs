@@ -229,13 +229,15 @@ try {
     ra0 && ra1 && Math.hypot(ra1.x - ra0.x, ra1.y - ra0.y) > 80,
     ra0 && ra1 ? `travel=${Math.round(Math.hypot(ra1.x - ra0.x, ra1.y - ra0.y))}` : "no sample");
 
-  // status change B -> A
-  await B.locator('[data-testid="status-switcher"]').tap();
-  await B.locator('[data-testid="status-focus"]').tap();
+  // status change B -> A. Settle first: under software WebGL a tap
+  // dispatched into a render stall can outlast the action timeout.
+  await settleInput(B);
+  await B.locator('[data-testid="status-switcher"]').tap({ timeout: 90000 });
+  await B.locator('[data-testid="status-focus"]').tap({ timeout: 90000 });
   const focusSeen = await waitFor(async () => (await remoteOf(A))?.status === "focus", 15000);
   record("B status focus → A roster/3D status", Boolean(focusSeen));
-  await B.locator('[data-testid="status-switcher"]').tap();
-  await B.locator('[data-testid="status-available"]').tap();
+  await B.locator('[data-testid="status-switcher"]').tap({ timeout: 90000 });
+  await B.locator('[data-testid="status-available"]').tap({ timeout: 90000 });
   await waitFor(async () => (await remoteOf(A))?.status === "available", 15000);
 
   // profile card via 3D avatar click on A (project B's avatar to screen)
