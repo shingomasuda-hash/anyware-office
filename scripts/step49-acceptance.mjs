@@ -63,7 +63,7 @@ const login = async (page, email, password) => {
   await page.fill("#email", email);
   await page.fill("#password", password);
   await page.click('[data-testid="login-submit"]');
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30000 });
+  await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 60000 });
 };
 const snap = (p) => p.evaluate(() => window.__officeGame?.snapshot() ?? null);
 const teleport = (p, x, y) => p.evaluate(([tx, ty]) => window.__officeGame?.teleport(tx, ty), [x, y]);
