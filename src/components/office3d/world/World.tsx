@@ -15,9 +15,11 @@ import {
 } from "@/lib/game/map";
 import type { AreaId, Rect } from "@/types/office";
 import {
+  ChairField,
   CoffeeTable,
   DeskBank,
   MeetingTable,
+  meetingChairSpecs,
   PlantSmall,
   PlantTall,
   Reception,
@@ -40,10 +42,15 @@ import {
 } from "./effects";
 import {
   ArrivalPlatform,
+  CurvedCorners,
   EntranceFascia,
+  FloatingCeiling,
+  FloorSlits,
+  GuidancePulse,
   HeroCore,
   HoloGreeting,
   RingGate,
+  SmartGlass,
   usePlazaMaterial,
 } from "./entrance";
 
@@ -544,10 +551,15 @@ function EntranceArea({ sim }: { sim: LabSim }) {
     <group>
       {/* arrival axis: platform → lane (in the plaza floor) → gate */}
       <ArrivalPlatform />
+      <GuidancePulse />
       <RingGate sim={sim} />
-      <HeroCore />
+      <HeroCore sim={sim} />
       <HoloGreeting />
       <EntranceFascia sim={sim} />
+      <FloatingCeiling />
+      <SmartGlass />
+      <CurvedCorners />
+      <FloorSlits />
       <Reception cx={c.cx} cz={c.cz} w={c.w} d={c.d} />
       {/* digital brand wall on the west face */}
       <TextPanel
@@ -625,6 +637,14 @@ function StaffArea({ sim }: { sim: LabSim }) {
 function MeetingArea({ sim }: { sim: LabSim }) {
   const tables = FURNITURE.filter((f) => f.kind === "table" && f.rect.y < 416);
   const b = AREA_BY_ID.MEETING.bounds;
+  const chairs = useMemo(
+    () =>
+      tables.flatMap((f) => {
+        const p = rectTo3D(f.rect);
+        return meetingChairSpecs(p.cx, p.cz, p.w, p.d);
+      }),
+    [tables],
+  );
   const screenTex = useMemo(
     () =>
       makeTextTexture(
@@ -643,6 +663,7 @@ function MeetingArea({ sim }: { sim: LabSim }) {
   );
   return (
     <group>
+      <ChairField chairs={chairs} />
       {tables.map((f, i) => {
         const p = rectTo3D(f.rect);
         return (

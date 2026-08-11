@@ -219,7 +219,9 @@ export default function AvatarMesh({
             <RoundedBox args={[0.145, 0.4, 0.17]} radius={0.05} position={[0, -0.19, 0]} material={bottomMat} castShadow />
             <group ref={side < 0 ? kneeL : kneeR} position={[0, -0.4, 0]}>
               <RoundedBox args={[0.125, 0.36, 0.145]} radius={0.045} position={[0, -0.17, 0]} material={bottomMat} castShadow />
-              <RoundedBox args={[0.135, 0.09, 0.26]} radius={0.035} position={[0, -0.375, 0.045]} material={shoeMat} castShadow />
+              {/* two-part shoe: colored upper + light sole */}
+              <RoundedBox args={[0.13, 0.065, 0.24]} radius={0.03} position={[0, -0.36, 0.04]} material={shoeMat} castShadow />
+              <RoundedBox args={[0.138, 0.032, 0.27]} radius={0.015} position={[0, -0.407, 0.05]} material={MAT.white} />
             </group>
           </group>
         ))}
@@ -250,12 +252,18 @@ export default function AvatarMesh({
           </group>
         ))}
 
-        {/* neck + head + hair + face */}
+        {/* collar + neck + head + hair + face */}
+        <RoundedBox args={[0.2, 0.05, 0.15]} radius={0.02} position={[0, 1.435, 0]} material={bottomMat} />
         <mesh material={skin} position={[0, 1.46, 0]}>
           <cylinderGeometry args={[0.05, 0.06, 0.08, 10]} />
         </mesh>
         <mesh material={skin} position={[0, 1.585, 0]} castShadow>
-          <sphereGeometry args={[0.148, 18, 14]} />
+          <sphereGeometry args={[0.144, 18, 14]} />
+        </mesh>
+        {/* quiet mouth line */}
+        <mesh position={[0, 1.528, 0.138]}>
+          <planeGeometry args={[0.045, 0.008]} />
+          <meshBasicMaterial color="#a8836a" />
         </mesh>
         {hairStyle === 0 ? (
           // short crop

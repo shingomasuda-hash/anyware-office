@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { PerformanceMonitor } from "@react-three/drei";
+import { ContactShadows, PerformanceMonitor } from "@react-three/drei";
 import * as THREE from "three";
 import { buildIdentity, type AvatarIdentity } from "@/lib/identity/identity";
 import type { RosterEntry } from "@/lib/realtime/types";
@@ -86,10 +86,13 @@ function Lights() {
         shadow-camera-far={90}
         shadow-bias={-0.0004}
       />
-      <ambientLight intensity={0.12} color="#f2f7fd" />
+      <ambientLight intensity={0.1} color="#f2f7fd" />
       {/* per-area accent fills — a hint of colored light gives each
-          room its own atmosphere without going neon-dark (§3) */}
-      <pointLight position={[19.7, 2.6, 25.2]} intensity={14} color="#a8dcff" distance={9} decay={2} />
+          room its own atmosphere without going neon-dark (§3). The
+          entrance key light is warm architectural white; cyan there is
+          reserved for information surfaces (§11). */}
+      <pointLight position={[19.7, 2.8, 25.2]} intensity={11} color="#fff3e4" distance={9} decay={2} />
+      <pointLight position={[22.2, 3.4, 24.8]} intensity={6} color="#ecf4fc" distance={6} decay={2} />
       <pointLight position={[4.7, 2.8, 2.7]} intensity={10} color="#eef4ff" distance={10} decay={2} />
       <pointLight position={[30.7, 2.6, 3.5]} intensity={12} color="#c9b2ff" distance={9} decay={2} />
     </>
@@ -282,6 +285,19 @@ export default function Office3DCanvas({
     >
       <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(Math.min(window.devicePixelRatio, 2))}>
         <Lights />
+        {/* static contact-shadow bake for the arrival plaza: grounds
+            the reception, core pedestal and furniture (§10). far stays
+            below the floating ceiling so panels don't darken the floor;
+            frames=1 → rendered once, zero per-frame cost. */}
+        <ContactShadows
+          position={[22, 0.018, 24.8]}
+          scale={13}
+          far={2.4}
+          blur={2.4}
+          opacity={0.38}
+          resolution={512}
+          frames={1}
+        />
         <World sim={sim} />
         <CameraRig sim={sim} isMobile={isMobile} />
         <LabInstruments sim={sim} />

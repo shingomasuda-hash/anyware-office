@@ -1,6 +1,8 @@
 "use client";
 
+import { useLayoutEffect, useRef } from "react";
 import { RoundedBox } from "@react-three/drei";
+import * as THREE from "three";
 import { MAT } from "./materials";
 
 // Parametric furniture (§16) — STEP 4.9.1 art direction: clean resin /
@@ -144,20 +146,13 @@ export function MeetingTable({
   cz,
   w,
   d,
-  chairs = 6,
 }: {
   cx: number;
   cz: number;
   w: number;
   d: number;
-  chairs?: number;
 }) {
   const topY = 0.74;
-  const perSide = Math.max(1, Math.floor((chairs - 2) / 2));
-  const sideXs = Array.from(
-    { length: perSide },
-    (_, i) => -w / 2 + ((i + 1) * w) / (perSide + 1),
-  );
   return (
     <group position={[cx, 0, cz]}>
       <RoundedBox
@@ -179,14 +174,84 @@ export function MeetingTable({
       <mesh material={MAT.matteSilver} position={[0, 0.025, 0]}>
         <cylinderGeometry args={[Math.min(w, d) * 0.28, Math.min(w, d) * 0.32, 0.05, 14]} />
       </mesh>
-      {sideXs.map((sx) => (
-        <OfficeChair key={`n${sx}`} position={[sx, 0, -d / 2 - 0.34]} rotationY={0} seatMat={MAT.white} />
-      ))}
-      {sideXs.map((sx) => (
-        <OfficeChair key={`s${sx}`} position={[sx, 0, d / 2 + 0.34]} rotationY={Math.PI} seatMat={MAT.white} />
-      ))}
-      <OfficeChair position={[-w / 2 - 0.36, 0, 0]} rotationY={Math.PI / 2} seatMat={MAT.white} />
-      <OfficeChair position={[w / 2 + 0.36, 0, 0]} rotationY={-Math.PI / 2} seatMat={MAT.white} />
+    </group>
+  );
+}
+
+export interface ChairSpec {
+  x: number;
+  z: number;
+  ry: number;
+}
+
+/** Chair positions around a meeting-table rect (six per table). */
+export function meetingChairSpecs(cx: number, cz: number, w: number, d: number): ChairSpec[] {
+  const perSide = 2;
+  const sideXs = Array.from(
+    { length: perSide },
+    (_, i) => -w / 2 + ((i + 1) * w) / (perSide + 1),
+  );
+  return [
+    ...sideXs.map((sx) => ({ x: cx + sx, z: cz - d / 2 - 0.34, ry: 0 })),
+    ...sideXs.map((sx) => ({ x: cx + sx, z: cz + d / 2 + 0.34, ry: Math.PI })),
+    { x: cx - w / 2 - 0.36, z: cz, ry: Math.PI / 2 },
+    { x: cx + w / 2 + 0.36, z: cz, ry: -Math.PI / 2 },
+  ];
+}
+
+/**
+ * All meeting chairs of an area as four InstancedMeshes (base, post,
+ * seat, back) — ~N×4 draw calls collapse to 4 (§17 instancing).
+ */
+export function ChairField({ chairs }: { chairs: ChairSpec[] }) {
+  const base = useRef<THREE.InstancedMesh>(null);
+  const post = useRef<THREE.InstancedMesh>(null);
+  const seat = useRef<THREE.InstancedMesh>(null);
+  const back = useRef<THREE.InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const dummy = new THREE.Object3D();
+    const write = (
+      mesh: THREE.InstancedMesh | null,
+      place: (c: ChairSpec, o: THREE.Object3D) => void,
+    ) => {
+      if (!mesh) return;
+      chairs.forEach((c, i) => {
+        dummy.position.set(0, 0, 0);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(1, 1, 1);
+        place(c, dummy);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+    };
+    write(base.current, (c, o) => o.position.set(c.x, 0.02, c.z));
+    write(post.current, (c, o) => o.position.set(c.x, 0.22, c.z));
+    write(seat.current, (c, o) => {
+      o.position.set(c.x, 0.46, c.z);
+      o.rotation.y = c.ry;
+    });
+    write(back.current, (c, o) => {
+      // back sits 0.2 behind the seat in the chair's local frame:
+      // local (0,0,-0.2) rotated by ry → (-0.2·sin ry, 0, -0.2·cos ry)
+      o.position.set(c.x - 0.2 * Math.sin(c.ry), 0.78, c.z - 0.2 * Math.cos(c.ry));
+      o.rotation.y = c.ry;
+    });
+  }, [chairs]);
+  return (
+    <group>
+      <instancedMesh ref={base} args={[undefined, undefined, chairs.length]} material={MAT.matteSilver}>
+        <cylinderGeometry args={[0.26, 0.3, 0.04, 12]} />
+      </instancedMesh>
+      <instancedMesh ref={post} args={[undefined, undefined, chairs.length]} material={MAT.matteSilver}>
+        <cylinderGeometry args={[0.03, 0.03, 0.4, 8]} />
+      </instancedMesh>
+      <instancedMesh ref={seat} args={[undefined, undefined, chairs.length]} material={MAT.white} castShadow>
+        <boxGeometry args={[0.46, 0.08, 0.44]} />
+      </instancedMesh>
+      <instancedMesh ref={back} args={[undefined, undefined, chairs.length]} material={MAT.white} castShadow>
+        <boxGeometry args={[0.44, 0.52, 0.07]} />
+      </instancedMesh>
     </group>
   );
 }

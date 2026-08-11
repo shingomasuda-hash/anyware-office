@@ -184,6 +184,32 @@ export function MetaCity() {
         </group>
       ))}
       <StaticBoxes material={MAT.brushed} specs={bridges} />
+      {/* elevated walkway with a glass parapet (district circulation) */}
+      <StaticBoxes
+        material={MAT.brushed}
+        specs={[{ x: 20, y: 5.6, z: -13.5, sx: 19, sy: 0.35, sz: 1.5 }]}
+      />
+      <mesh material={MAT.glass} position={[20, 6.25, -12.8]}>
+        <planeGeometry args={[19, 0.9]} />
+      </mesh>
+      {/* lit facade stripes on two towers */}
+      <StaticBoxes
+        material={MAT.neonWhite}
+        specs={[
+          { x: 12.2, y: 5.5, z: -13.9, sx: 0.18, sy: 11, sz: 0.18 },
+          { x: 57.9, y: 7.5, z: 24.2, sx: 0.18, sy: 15, sz: 0.18 },
+        ]}
+      />
+      {/* green terraces on tower setbacks */}
+      <StaticBoxes
+        material={MAT.leaf}
+        specs={[
+          { x: 13, y: 12.6, z: -14, sx: 1.6, sy: 0.9, sz: 1.6 },
+          { x: 15.6, y: 12.4, z: -13.4, sx: 1.1, sy: 0.7, sz: 1.1 },
+          { x: 58.6, y: 13.3, z: 8.6, sx: 1.4, sy: 0.8, sz: 1.4 },
+          { x: 30.8, y: 15.2, z: -16.6, sx: 1.5, sy: 0.9, sz: 1.5 },
+        ]}
+      />
       {/* giant district billboard facing the campus */}
       <group position={[0, 12.4, -15.8]} rotation-y={0.25}>
         <mesh material={adMat}>
@@ -300,12 +326,12 @@ export function Vehicles() {
     const t = performance.now() / 1000;
     if (a.current) {
       const ang = t * 0.045;
-      a.current.position.set(22 + Math.cos(ang) * 34, 11.5, 15 + Math.sin(ang) * 30);
+      a.current.position.set(22 + Math.cos(ang) * 42, 16, 15 + Math.sin(ang) * 36);
       a.current.rotation.y = -ang;
     }
     if (b.current) {
       const ang = -t * 0.06 + 2.1;
-      b.current.position.set(22 + Math.cos(ang) * 39, 14.5, 15 + Math.sin(ang) * 33);
+      b.current.position.set(22 + Math.cos(ang) * 47, 19, 15 + Math.sin(ang) * 40);
       b.current.rotation.y = -ang + Math.PI;
     }
   });

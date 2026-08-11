@@ -1,21 +1,23 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
+import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { LabSim } from "../LabSim";
+import { AREA_BY_ID } from "@/lib/game/map";
+import type { AreaId } from "@/types/office";
 import { MAT, makeTextTexture } from "./materials";
 import { u } from "./scale";
 
-// ENTRANCE = WORLD ARRIVAL HUB (STEP 4.9.2 Milestone A).
-// Arrival axis: spawn (880,1100) → light lane → HERO CORE (above the
-// reception module, west of the axis) → RING GATE (880,806) → district.
-// Everything here is visual-layer only; collision stays in map.ts.
+// ENTRANCE = WORLD ARRIVAL HUB (STEP 4.9.2 Milestone A.1 — FUTURE
+// IMMERSION PASS). Direction: Premium Office 60 / Near Future 30 /
+// Metaverse 10 — architecture, material and light carry the future
+// feel; cyan is reserved for information, connection and guidance.
+// Arrival axis: spawn (880,1100) → light lane → DATA CORE (west of
+// the axis) → RING GATE (880,806) → district.
 
-/* ── plaza floor ─────────────────────────────────────────────────────
- * The entrance floor is a designed plaza, not a flat slab: concentric
- * arrival rings, radial ticks and the glowing walk lane are baked into
- * one sRGB canvas texture (kills the "giant single-color plane"). */
+/* ── plaza floor: pearl terrazzo with embedded guidance ───────────── */
 export function usePlazaMaterial(): THREE.Material {
   return useMemo(() => {
     const S = 1024;
@@ -23,20 +25,37 @@ export function usePlazaMaterial(): THREE.Material {
     canvas.width = S;
     canvas.height = S;
     const ctx = canvas.getContext("2d")!;
-    // base: soft cool gradient
     const bg = ctx.createLinearGradient(0, 0, 0, S);
-    bg.addColorStop(0, "#eef3f8");
-    bg.addColorStop(1, "#e2eaf2");
+    bg.addColorStop(0, "#eef2f6");
+    bg.addColorStop(1, "#e4eaf1");
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, S, S);
+    // pearl terrazzo flecks (deterministic LCG)
+    let seed = 42;
+    const rand = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 0xffffffff;
+    };
+    const fleckColors = [
+      "rgba(197, 206, 216, 0.55)",
+      "rgba(176, 189, 202, 0.4)",
+      "rgba(226, 231, 238, 0.7)",
+      "rgba(154, 189, 214, 0.28)",
+    ];
+    for (let i = 0; i < 700; i++) {
+      ctx.fillStyle = fleckColors[i % fleckColors.length];
+      const r = 0.8 + rand() * 1.9;
+      ctx.beginPath();
+      ctx.arc(rand() * S, rand() * S, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
     // ENTRANCE bounds: x 680..1080 (→u), y 800..1184 (→v)
     const px = (wx: number) => ((wx - 680) / 400) * S;
     const py = (wy: number) => ((wy - 800) / 384) * S;
     const cx = px(880);
     const cy = py(1100); // spawn / arrival platform center
-    // concentric arrival rings
     for (const [r, a, w] of [
-      [90, 0.5, 5], [150, 0.32, 3], [230, 0.22, 3], [330, 0.14, 2], [450, 0.1, 2],
+      [90, 0.4, 5], [150, 0.26, 3], [230, 0.18, 3], [330, 0.12, 2], [450, 0.08, 2],
     ] as const) {
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -44,42 +63,40 @@ export function usePlazaMaterial(): THREE.Material {
       ctx.lineWidth = w;
       ctx.stroke();
     }
-    // radial ticks
     for (let i = 0; i < 24; i++) {
       const ang = (i / 24) * Math.PI * 2;
       ctx.beginPath();
       ctx.moveTo(cx + Math.cos(ang) * 170, cy + Math.sin(ang) * 170);
       ctx.lineTo(cx + Math.cos(ang) * 195, cy + Math.sin(ang) * 195);
-      ctx.strokeStyle = "rgba(120, 150, 175, 0.35)";
+      ctx.strokeStyle = "rgba(120, 150, 175, 0.3)";
       ctx.lineWidth = 2.5;
       ctx.stroke();
     }
-    // subtle plaza grid
-    ctx.strokeStyle = "rgba(150, 170, 190, 0.14)";
+    // subtle plaza panel joints
+    ctx.strokeStyle = "rgba(150, 170, 190, 0.13)";
     ctx.lineWidth = 1.5;
     for (let g = 0; g <= S; g += 128) {
       ctx.beginPath(); ctx.moveTo(g, 0); ctx.lineTo(g, S); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(0, g); ctx.lineTo(S, g); ctx.stroke();
     }
-    // glowing walk lane: spawn → gate (x=880 axis, northwards)
+    // glowing walk lane: spawn → gate
     const laneL = px(858);
     const laneR = px(902);
     const laneTop = py(806);
     const lane = ctx.createLinearGradient(0, laneTop, 0, cy);
-    lane.addColorStop(0, "rgba(102, 216, 255, 0.34)");
-    lane.addColorStop(1, "rgba(102, 216, 255, 0.10)");
+    lane.addColorStop(0, "rgba(102, 216, 255, 0.3)");
+    lane.addColorStop(1, "rgba(102, 216, 255, 0.08)");
     ctx.fillStyle = lane;
     ctx.fillRect(laneL, laneTop, laneR - laneL, cy - laneTop);
     for (const lx of [laneL, laneR]) {
       ctx.beginPath();
       ctx.moveTo(lx, laneTop);
       ctx.lineTo(lx, cy);
-      ctx.strokeStyle = "rgba(62, 201, 245, 0.75)";
+      ctx.strokeStyle = "rgba(62, 201, 245, 0.65)";
       ctx.lineWidth = 4;
       ctx.stroke();
     }
-    // chevrons pointing to the gate
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
     ctx.lineWidth = 5;
     for (let i = 0; i < 4; i++) {
       const yy = cy - 90 - i * 120;
@@ -89,38 +106,148 @@ export function usePlazaMaterial(): THREE.Material {
       ctx.lineTo(cx + 26, yy + 18);
       ctx.stroke();
     }
-    // faint halo under the hero core (west of axis, above reception)
     const hx = px(788);
     const hy = py(956);
-    const halo = ctx.createRadialGradient(hx, hy, 20, hx, hy, 240);
-    halo.addColorStop(0, "rgba(140, 220, 255, 0.30)");
-    halo.addColorStop(1, "rgba(140, 220, 255, 0)");
+    const halo = ctx.createRadialGradient(hx, hy, 20, hx, hy, 220);
+    halo.addColorStop(0, "rgba(150, 215, 245, 0.22)");
+    halo.addColorStop(1, "rgba(150, 215, 245, 0)");
     ctx.fillStyle = halo;
     ctx.fillRect(0, 0, S, S);
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 8;
-    return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.42, metalness: 0.05 });
+    return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.34, metalness: 0.08 });
   }, []);
 }
 
-/* ── hero landmark ──────────────────────────────────────────────────
- * The AnyWare Data Core: a slow twin-ring gyroscope with a pearl core,
- * orbiting light motes and a soft light shaft, floating high above the
- * reception module. One glance = "this is AnyWare's world". */
-export function HeroCore() {
-  const rings = useRef<THREE.Group>(null);
-  const orbiters = useRef<THREE.InstancedMesh>(null);
-  const shaftMat = useMemo(
+/* ── floating light ceiling ─────────────────────────────────────────
+ * Layered white panels hovering at different heights over the plaza,
+ * the central one softly luminous — vertical composition: floor →
+ * people → data core → floating ceiling. Panels drift millimetres. */
+export function FloatingCeiling() {
+  const group = useRef<THREE.Group>(null);
+  useFrame(() => {
+    const g = group.current;
+    if (!g) return;
+    // millimetre-scale kinetic drift (§6) — visible as life, not motion
+    g.position.y = Math.sin(performance.now() / 3600) * 0.02;
+  });
+  const panels: Array<{
+    p: [number, number, number];
+    s: [number, number];
+    m: THREE.Material;
+  }> = [
+    { p: [20.3, 4.05, 24.0], s: [4.4, 2.0], m: MAT.wallPaint },
+    { p: [23.8, 3.75, 25.7], s: [3.0, 1.6], m: MAT.pearl },
+    { p: [21.5, 3.5, 27.0], s: [2.6, 1.3], m: MAT.warmCeramic },
+    { p: [24.6, 4.2, 22.7], s: [2.3, 1.25], m: MAT.wallPaint },
+    { p: [22.2, 3.62, 24.8], s: [2.1, 1.15], m: MAT.softGlow },
+  ];
+  return (
+    <group ref={group}>
+      {panels.map((pn, i) => (
+        <group key={i} position={pn.p}>
+          <mesh material={pn.m}>
+            <boxGeometry args={[pn.s[0], 0.06, pn.s[1]]} />
+          </mesh>
+        </group>
+      ))}
+      {/* thin light seams between panel layers */}
+      {[
+        { p: [21.9, 3.86, 24.9] as const, l: 3.4 },
+        { p: [23.2, 3.66, 25.2] as const, l: 2.6 },
+      ].map((sm, i) => (
+        <mesh key={i} material={MAT.neonWhite} position={[sm.p[0], sm.p[1], sm.p[2]]}>
+          <boxGeometry args={[sm.l, 0.012, 0.012]} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/* ── smart glass volume (spatial UI as architecture) ───────────────
+ * A cantilevered translucent volume on the west wall: information
+ * lives inside the glass, softly fading — not a billboard. */
+export function SmartGlass() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  const tex = useMemo(
+    () =>
+      makeTextTexture(
+        [
+          { text: "ANYWARE OFFICE", size: 30, color: "rgba(230,242,250,0.85)", weight: 600 },
+          { text: `${hh}:${mm}`, size: 118, color: "rgba(240,248,255,0.95)", weight: 700 },
+          { text: "TODAY", size: 26, color: "rgba(150,175,195,0.8)", weight: 600 },
+          { text: "SIGNAL 3 · PARTNER 2", size: 34, color: "rgba(180,220,245,0.9)", weight: 600 },
+          { text: "MEETING 1", size: 34, color: "rgba(180,220,245,0.9)", weight: 600 },
+        ],
+        { width: 512, height: 640, tracking: 2 },
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const uiMat = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: "#bfe9ff",
+        map: tex,
         transparent: true,
-        opacity: 0.07,
         toneMapped: false,
         depthWrite: false,
-        side: THREE.DoubleSide,
       }),
+    [tex],
+  );
+  useFrame(() => {
+    // information breathes inside the glass (data fade, §6)
+    uiMat.opacity = 0.72 + Math.sin(performance.now() / 4200) * 0.18;
+  });
+  const x = u(696);
+  const z = u(880);
+  return (
+    <group position={[x + 0.24, 1.95, z]}>
+      {/* cantilevered frame */}
+      <mesh material={MAT.pearl} position={[0, 0.78, 0]} castShadow>
+        <boxGeometry args={[0.5, 0.07, 1.9]} />
+      </mesh>
+      <mesh material={MAT.pearl} position={[0, -0.78, 0]} castShadow>
+        <boxGeometry args={[0.5, 0.07, 1.9]} />
+      </mesh>
+      {/* frosted back + clear front */}
+      <mesh material={MAT.frost} position={[-0.12, 0, 0]} rotation-y={Math.PI / 2}>
+        <planeGeometry args={[1.82, 1.5]} />
+      </mesh>
+      <mesh material={MAT.glass} position={[0.22, 0, 0]} rotation-y={Math.PI / 2}>
+        <planeGeometry args={[1.86, 1.56]} />
+      </mesh>
+      {/* the information layer floats between the two surfaces */}
+      <mesh material={uiMat} position={[0.08, 0, 0]} rotation-y={Math.PI / 2}>
+        <planeGeometry args={[1.34, 1.42]} />
+      </mesh>
+      {/* single quiet state indicator */}
+      <mesh material={MAT.neonCyan} position={[0.23, -0.66, 0.8]}>
+        <sphereGeometry args={[0.022, 8, 8]} />
+      </mesh>
+    </group>
+  );
+}
+
+/* ── AnyWare Data Core: the hero landmark ──────────────────────────
+ * Twin-ring gyroscope + pearl core. Five business sub-nodes (LOCAL /
+ * SIGNAL / PARTNER / TABLE / GREEN) orbit the core, joined by light
+ * spokes — the businesses connect into one AnyWare economy. Labels
+ * open softly when a player approaches (§7 ambient interaction). */
+const CORE_NODES: AreaId[] = ["LOCAL", "SIGNAL", "PARTNER", "TABLE", "GREEN"];
+
+export function HeroCore({ sim }: { sim: LabSim }) {
+  const rings = useRef<THREE.Group>(null);
+  const [near, setNear] = useState(false);
+  const nearRef = useRef(false);
+  const nodeMats = useMemo(
+    () =>
+      CORE_NODES.map(
+        (id) =>
+          new THREE.MeshBasicMaterial({ color: AREA_BY_ID[id].accent, toneMapped: false }),
+      ),
     [],
   );
   const letters = useMemo(
@@ -141,62 +268,96 @@ export function HeroCore() {
       }),
     [letters],
   );
-  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const shaftMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: "#cfe9fa",
+        transparent: true,
+        opacity: 0.06,
+        toneMapped: false,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    [],
+  );
   const x = u(788);
   const z = u(956);
-  const coreY = 3.9;
+  const coreY = 3.55;
   useFrame(() => {
     const t = performance.now() / 1000;
     const g = rings.current;
     if (g) {
-      g.rotation.y = t * 0.35;
+      g.rotation.y = t * 0.3;
       g.children[0].rotation.x = 1.05 + Math.sin(t * 0.4) * 0.12;
       g.children[1].rotation.x = -0.65 + Math.cos(t * 0.33) * 0.15;
-      g.position.y = coreY + Math.sin(t * 0.7) * 0.1;
+      g.position.y = coreY + Math.sin(t * 0.7) * 0.08;
     }
-    const inst = orbiters.current;
-    if (inst) {
-      for (let i = 0; i < 6; i++) {
-        const a = t * 0.5 + (i * Math.PI) / 3;
-        dummy.position.set(
-          x + Math.cos(a) * 2.1,
-          coreY + Math.sin(t * 0.9 + i * 1.3) * 0.55,
-          z + Math.sin(a) * 2.1,
-        );
-        const s = 0.09 + (i % 3) * 0.03;
-        dummy.scale.setScalar(s);
-        dummy.updateMatrix();
-        inst.setMatrixAt(i, dummy.matrix);
-      }
-      inst.instanceMatrix.needsUpdate = true;
+    const dx = sim.avatar.x - 788;
+    const dy = sim.avatar.y - 956;
+    const isNear = dx * dx + dy * dy < 150 * 150;
+    if (isNear !== nearRef.current) {
+      nearRef.current = isNear;
+      setNear(isNear);
     }
   });
   return (
     <group>
       <group ref={rings} position={[x, coreY, z]}>
         <mesh material={MAT.neonWhite} rotation-x={1.05}>
-          <torusGeometry args={[1.7, 0.05, 10, 64]} />
+          <torusGeometry args={[1.28, 0.045, 10, 64]} />
         </mesh>
         <mesh material={MAT.neonCyan} rotation-x={-0.65}>
-          <torusGeometry args={[1.2, 0.04, 10, 56]} />
+          <torusGeometry args={[0.92, 0.035, 10, 56]} />
         </mesh>
-        {/* pearl core + inner glow */}
         <mesh material={MAT.pearl} castShadow>
           <sphereGeometry args={[0.52, 24, 18]} />
         </mesh>
         <mesh material={MAT.coreGlow}>
           <sphereGeometry args={[0.68, 18, 14]} />
         </mesh>
+        {/* five business nodes joined to the core by light spokes */}
+        {CORE_NODES.map((id, i) => {
+          const ang = (i / CORE_NODES.length) * Math.PI * 2;
+          return (
+            <group key={id} rotation-y={ang}>
+              <mesh material={MAT.holo} rotation-z={Math.PI / 2} position={[0.62, 0, 0]}>
+                <cylinderGeometry args={[0.012, 0.012, 0.85, 6]} />
+              </mesh>
+              <mesh material={nodeMats[i]} position={[1.1, 0, 0]}>
+                <sphereGeometry args={[0.085, 12, 10]} />
+              </mesh>
+              <Html
+                position={[1.1, 0.2, 0]}
+                center
+                distanceFactor={6}
+                style={{ pointerEvents: "none", whiteSpace: "nowrap" }}
+              >
+                <div
+                  style={{
+                    background: "rgba(13,20,32,0.66)",
+                    border: "1px solid rgba(150,210,240,0.3)",
+                    borderRadius: 6,
+                    padding: "1px 6px",
+                    fontFamily: "system-ui, sans-serif",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: "0.12em",
+                    color: "#dceefb",
+                    opacity: near ? 1 : 0,
+                    transition: "opacity 0.6s ease",
+                    backdropFilter: "blur(4px)",
+                  }}
+                >
+                  {AREA_BY_ID[id].label}
+                </div>
+              </Html>
+            </group>
+          );
+        })}
       </group>
-      {/* orbiting light motes */}
-      <instancedMesh ref={orbiters} args={[undefined, undefined, 6]} material={MAT.neonCyan}>
-        <sphereGeometry args={[1, 10, 8]} />
-      </instancedMesh>
-      {/* brand letters floating under the core */}
-      <mesh material={lettersMat} position={[x, 2.5, z]}>
+      <mesh material={lettersMat} position={[x, 2.35, z]}>
         <planeGeometry args={[3.4, 0.5]} />
       </mesh>
-      {/* soft light shaft down to the reception module */}
       <mesh material={shaftMat} position={[x, 2.15, z]}>
         <cylinderGeometry args={[0.5, 0.85, 3.1, 20, 1, true]} />
       </mesh>
@@ -204,12 +365,11 @@ export function HeroCore() {
   );
 }
 
-/* ── ring gate ──────────────────────────────────────────────────────
- * A standing double light-ring over the corridor doorway; the walk
- * lane runs straight through it. Layered digital sign floats above. */
+/* ── ring gate with proximity response ─────────────────────────────── */
 export function RingGate({ sim }: { sim: LabSim }) {
   const group = useRef<THREE.Group>(null);
   const pulse = useRef<THREE.MeshBasicMaterial>(null);
+  const glowBase = useRef(0.5);
   const xU = 880;
   const zU = 806;
   useFrame(() => {
@@ -218,8 +378,13 @@ export function RingGate({ sim }: { sim: LabSim }) {
     const occludes =
       zU > sim.avatar.y + 8 && zU < sim.avatar.y + 230 && Math.abs(xU - sim.avatar.x) < 340;
     g.visible = !occludes;
+    // the gate brightens slightly as the player approaches (§7)
+    const dx = sim.avatar.x - xU;
+    const dy = sim.avatar.y - zU;
+    const target = dx * dx + dy * dy < 240 * 240 ? 0.8 : 0.48;
+    glowBase.current += (target - glowBase.current) * 0.04;
     if (pulse.current) {
-      pulse.current.opacity = 0.5 + Math.sin(performance.now() / 900) * 0.22;
+      pulse.current.opacity = glowBase.current + Math.sin(performance.now() / 1100) * 0.14;
     }
   });
   const x = u(xU);
@@ -241,7 +406,6 @@ export function RingGate({ sim }: { sim: LabSim }) {
   );
   return (
     <group ref={group}>
-      {/* main standing ring pair, walkable through */}
       <mesh material={MAT.neonCyan} position={[x, 1.62, z]}>
         <torusGeometry args={[1.62, 0.075, 12, 64]} />
       </mesh>
@@ -249,7 +413,6 @@ export function RingGate({ sim }: { sim: LabSim }) {
         <torusGeometry args={[1.86, 0.028, 8, 64]} />
         <meshBasicMaterial ref={pulse} color="#dff4ff" transparent opacity={0.6} toneMapped={false} />
       </mesh>
-      {/* floor anchors */}
       {[-1.62, 1.62].map((ox) => (
         <group key={ox} position={[x + ox, 0, z]}>
           <mesh material={MAT.pearl} position={[0, 0.26, 0]} castShadow>
@@ -260,7 +423,6 @@ export function RingGate({ sim }: { sim: LabSim }) {
           </mesh>
         </group>
       ))}
-      {/* layered digital sign above the ring */}
       <group position={[x, 3.75, z]}>
         <mesh material={MAT.holo} position={[0, 0, -0.06]}>
           <planeGeometry args={[3.3, 1.12]} />
@@ -279,23 +441,39 @@ export function RingGate({ sim }: { sim: LabSim }) {
   );
 }
 
-/* ── arrival platform at the real spawn point (880,1100) ─────────── */
+/* ── arrival platform with a one-shot spawn pulse ──────────────────── */
 export function ArrivalPlatform() {
+  const ring = useRef<THREE.MeshBasicMaterial>(null);
+  const spawnRing = useRef<THREE.Mesh>(null);
+  const born = useRef(performance.now());
   const pillarMat = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: "#cdeeff",
+        color: "#d8ecfa",
         transparent: true,
-        opacity: 0.06,
+        opacity: 0.05,
         toneMapped: false,
         depthWrite: false,
         side: THREE.DoubleSide,
       }),
     [],
   );
-  const ring = useRef<THREE.MeshBasicMaterial>(null);
   useFrame(() => {
-    if (ring.current) ring.current.opacity = 0.65 + Math.sin(performance.now() / 800) * 0.25;
+    const t = performance.now();
+    if (ring.current) ring.current.opacity = 0.6 + Math.sin(t / 900) * 0.2;
+    // §7: the platform answers the spawn once, then settles
+    const age = (t - born.current) / 1000;
+    const m = spawnRing.current;
+    if (m) {
+      if (age < 2.4) {
+        const k = age / 2.4;
+        m.visible = true;
+        m.scale.setScalar(1 + k * 1.5);
+        (m.material as THREE.MeshBasicMaterial).opacity = (1 - k) * 0.7;
+      } else {
+        m.visible = false;
+      }
+    }
   });
   const x = u(880);
   const z = u(1100);
@@ -311,7 +489,10 @@ export function ArrivalPlatform() {
       <mesh material={MAT.neonWhite} rotation-x={-Math.PI / 2} position={[0, 0.028, 0]}>
         <ringGeometry args={[0.62, 0.665, 36]} />
       </mesh>
-      {/* soft light pillar */}
+      <mesh ref={spawnRing} rotation-x={-Math.PI / 2} position={[0, 0.034, 0]}>
+        <ringGeometry args={[1.0, 1.08, 40]} />
+        <meshBasicMaterial color="#bfe9ff" transparent opacity={0} toneMapped={false} depthWrite={false} />
+      </mesh>
       <mesh material={pillarMat} position={[0, 1.5, 0]}>
         <cylinderGeometry args={[0.85, 1.0, 3.0, 24, 1, true]} />
       </mesh>
@@ -319,15 +500,93 @@ export function ArrivalPlatform() {
   );
 }
 
-/* ── floating fascia band around the ENTRANCE perimeter ─────────────
- * A clean white band hovering above the wall tops with cyan underglow:
- * intentional open-air architecture instead of roofless boxes. The
- * south edge carries no band (the camera lives there), and the north
- * band joins the dollhouse occlusion so it never blocks the view. */
+/* ── directional guidance pulse along the walk lane (§6) ───────────── */
+export function GuidancePulse() {
+  const mat = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 32;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d")!;
+    const grad = ctx.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, "rgba(120,215,255,0)");
+    grad.addColorStop(0.5, "rgba(140,225,255,0.55)");
+    grad.addColorStop(1, "rgba(120,215,255,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 32, 256);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      opacity: 0.3,
+      toneMapped: false,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+  }, []);
+  useFrame(() => {
+    const tex = mat.map as THREE.CanvasTexture;
+    // very slow pulse travelling toward the gate
+    tex.offset.y = (performance.now() / 9000) % 1;
+  });
+  return (
+    <mesh
+      material={mat}
+      rotation-x={-Math.PI / 2}
+      position={[u(880), 0.026, u(953)]}
+    >
+      <planeGeometry args={[1.0, 7.2]} />
+    </mesh>
+  );
+}
+
+/* ── under-floor light slits near the reception module (§8) ────────── */
+export function FloorSlits() {
+  return (
+    <group>
+      {[u(1000), u(1032)].map((zz, i) => (
+        <group key={i} position={[u(760), 0, zz]}>
+          <mesh material={MAT.neonWhite} rotation-x={-Math.PI / 2} position={[0, 0.016, 0]}>
+            <planeGeometry args={[3.0, 0.05]} />
+          </mesh>
+          <mesh material={MAT.frost} rotation-x={-Math.PI / 2} position={[0, 0.022, 0]}>
+            <planeGeometry args={[3.1, 0.12]} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+/* ── curved corner shells: the room stops being a box (§2) ─────────── */
+export function CurvedCorners() {
+  const H = 2.7;
+  return (
+    <group>
+      {/* NW corner (680,800): interior quadrant +x/+z */}
+      <mesh
+        material={MAT.pearl}
+        position={[u(696), H / 2, u(816)]}
+      >
+        <cylinderGeometry args={[1.15, 1.15, H, 14, 1, true, 0, Math.PI / 2]} />
+      </mesh>
+      {/* NE corner (1080,800): interior quadrant -x/+z */}
+      <mesh
+        material={MAT.pearl}
+        position={[u(1064), H / 2, u(816)]}
+      >
+        <cylinderGeometry args={[1.15, 1.15, H, 14, 1, true, -Math.PI / 2, Math.PI / 2]} />
+      </mesh>
+    </group>
+  );
+}
+
+/* ── floating fascia crown, two stepped layers (§2 architecture) ──── */
 export function EntranceFascia({ sim }: { sim: LabSim }) {
   const y = 3.0;
-  const t = 0.34; // band height
-  const d = 0.22; // band depth
+  const t = 0.3;
+  const d = 0.22;
   const west = u(680) + 0.1;
   const east = u(1080) - 0.1;
   const north = u(800) + 0.1;
@@ -345,21 +604,34 @@ export function EntranceFascia({ sim }: { sim: LabSim }) {
       Math.abs(880 - sim.avatar.x) < 500;
     g.visible = !occludes;
   });
-  const band = (p: readonly [number, number, number], s: readonly [number, number, number]) => (
+  const band = (
+    p: readonly [number, number, number],
+    s: readonly [number, number, number],
+    tilt: number,
+  ) => (
     <>
       <mesh material={MAT.pearl} position={[p[0], p[1], p[2]]} castShadow>
-        <boxGeometry args={[s[0], s[1], s[2]]} />
+        <boxGeometry args={[s[0], t, s[2]]} />
       </mesh>
-      <mesh material={MAT.neonCyan} position={[p[0], p[1] - t / 2 - 0.015, p[2]]}>
-        <boxGeometry args={[s[0] * 0.995, 0.018, s[2] * 0.995]} />
+      {/* stepped second layer, slightly tilted — the "cut" crown */}
+      <mesh
+        material={MAT.wallPaint}
+        position={[p[0], p[1] + 0.3, p[2]]}
+        rotation-x={s[2] > s[0] ? 0 : tilt}
+        rotation-z={s[2] > s[0] ? tilt : 0}
+      >
+        <boxGeometry args={[s[0] * 0.88, 0.1, s[2] * 0.88]} />
+      </mesh>
+      <mesh material={MAT.neonWhite} position={[p[0], p[1] - t / 2 - 0.015, p[2]]}>
+        <boxGeometry args={[s[0] * 0.995, 0.016, s[2] * 0.995]} />
       </mesh>
     </>
   );
   return (
     <group>
-      <group ref={northRef}>{band([cx, y, north], [wLen, t, d])}</group>
-      {band([west, y, cz], [d, t, dLen])}
-      {band([east, y, cz], [d, t, dLen])}
+      <group ref={northRef}>{band([cx, y, north], [wLen, t, d], 0.07)}</group>
+      {band([west, y, cz], [d, t, dLen], 0.07)}
+      {band([east, y, cz], [d, t, dLen], -0.07)}
     </group>
   );
 }
@@ -399,7 +671,6 @@ export function HoloGreeting() {
       <mesh material={MAT.neonMint} position={[0, -0.47, 0.02]}>
         <boxGeometry args={[1.66, 0.016, 0.016]} />
       </mesh>
-      {/* slim floor stem so the hologram reads as projected */}
       <mesh material={MAT.brushed} position={[0, -0.83, 0]}>
         <cylinderGeometry args={[0.028, 0.05, 1.44, 8]} />
       </mesh>

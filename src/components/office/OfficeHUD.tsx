@@ -30,13 +30,16 @@ export default function OfficeHUD({
             : "animate-hud-in flex max-w-[60vw] flex-col items-center rounded-xl border border-zinc-200/70 bg-white/85 px-4 py-2 shadow-sm backdrop-blur dark:border-zinc-700/70 dark:bg-zinc-900/85 md:max-w-none md:px-6"
         }
       >
-        <p
-          className={`text-[9px] font-semibold tracking-[0.3em] ${
-            lab ? "text-cyan-200/70" : "text-zinc-400"
-          }`}
-        >
-          YOU ARE HERE
-        </p>
+        {lab ? (
+          <p className="flex items-center gap-1.5 text-[9px] font-semibold tracking-[0.3em] text-cyan-200/70">
+            <span className="h-1 w-1 rounded-full bg-cyan-300/80" aria-hidden="true" />
+            ANYWARE HQ · DISTRICT
+          </p>
+        ) : (
+          <p className="text-[9px] font-semibold tracking-[0.3em] text-zinc-400">
+            YOU ARE HERE
+          </p>
+        )}
         <p
           data-testid="hud-area"
           className="mt-0.5 text-base font-semibold tracking-wide md:text-lg"
