@@ -31,7 +31,7 @@ import {
 } from "./Furniture";
 import { MAT, makeTextTexture } from "./materials";
 import { rectTo3D, u, WALL_HEIGHT_M } from "./scale";
-import { axisBetween, useViewOcclusion } from "./occlusion";
+import { cameraWorldUnits, OcclusionSet, useViewOcclusion } from "./occlusion";
 import {
   FloatingOrbs,
   MetaCity,
@@ -41,6 +41,7 @@ import {
   writeInstances,
   type InstanceSpec,
 } from "./effects";
+import { AreaGateways } from "./gateways";
 import {
   ArrivalPlatform,
   CurvedCorners,
@@ -237,47 +238,26 @@ function Walls({ sim }: { sim: LabSim }) {
   const groupRefs = useRef<Array<THREE.Group | null>>([]);
   const silverRef = useRef<THREE.InstancedMesh>(null);
   const neonRef = useRef<THREE.InstancedMesh>(null);
-  const hiddenKey = useRef("");
-
-  // Camera-relative dollhouse: with the chase camera swinging behind
-  // the walking direction, walls on ANY side can sit between avatar
-  // and camera — horizontal walls hide against the z-axis span,
-  // vertical walls against the x-axis span.
-  const computeHidden = () => {
-    const ay = sim.avatar.y;
-    const ax = sim.avatar.x;
-    const camUx = camera.position.x / 0.025;
-    const camUy = camera.position.z / 0.025;
-    const hidden = new Set<number>();
-    for (let i = 0; i < classified.length; i++) {
-      const { r, horizontal } = classified[i];
-      if (horizontal && r.h === WALL_T) {
-        if (axisBetween(ay, camUy, r.y) && r.x < ax + 340 && r.x + r.w > ax - 340) hidden.add(i);
-      } else if (!horizontal && r.w === WALL_T) {
-        if (axisBetween(ax, camUx, r.x) && r.y < ay + 340 && r.y + r.h > ay - 340) hidden.add(i);
-      }
-    }
-    return hidden;
-  };
+  const occ = useMemo(() => new OcclusionSet(), []);
+  const rects = useMemo(() => classified.map((c) => c.r), [classified]);
 
   useLayoutEffect(() => {
     writeInstances(silverRef.current, silver);
     writeInstances(neonRef.current, neon);
-    hiddenKey.current = "";
+    occ.invalidate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [silver, neon]);
 
   useFrame(() => {
-    const hidden = computeHidden();
+    const cam = cameraWorldUnits(camera);
+    occ.update(rects, sim.avatar.x, sim.avatar.y, cam.x, cam.y);
     for (let i = 0; i < classified.length; i++) {
       const g = groupRefs.current[i];
-      if (g) g.visible = !hidden.has(i);
+      if (g) g.visible = !occ.has(i);
     }
-    const key = Array.from(hidden).sort((a, b) => a - b).join(",");
-    if (key !== hiddenKey.current) {
-      hiddenKey.current = key;
-      writeInstances(silverRef.current, silver, (i) => hidden.has(silver[i].wall));
-      writeInstances(neonRef.current, neon, (i) => hidden.has(neon[i].wall));
+    if (occ.changed) {
+      writeInstances(silverRef.current, silver, (i) => occ.has(silver[i].wall));
+      writeInstances(neonRef.current, neon, (i) => occ.has(neon[i].wall));
     }
   });
 
@@ -707,6 +687,7 @@ function WorldImpl({ sim }: { sim: LabSim }) {
       <Floors />
       <Walls sim={sim} />
       <MassingFurniture />
+      <AreaGateways sim={sim} />
       <RooftopBillboards sim={sim} />
       <EntranceArea sim={sim} />
       <StaffArea sim={sim} />

@@ -8,8 +8,8 @@ import type { LabSim } from "../LabSim";
 import { AREA_BY_ID } from "@/lib/game/map";
 import type { AreaId } from "@/types/office";
 import { MAT, makeTextTexture } from "./materials";
-import { pointOccluded } from "./occlusion";
-import { u, WORLD_UNIT_TO_METERS } from "./scale";
+import { cameraWorldUnits, segmentHitsRect } from "./occlusion";
+import { u } from "./scale";
 
 // ENTRANCE = WORLD ARRIVAL HUB (STEP 4.9.2 Milestone A.1 — FUTURE
 // IMMERSION PASS). Direction: Premium Office 60 / Near Future 30 /
@@ -377,13 +377,14 @@ export function RingGate({ sim }: { sim: LabSim }) {
   useFrame(() => {
     const g = group.current;
     if (!g) return;
-    g.visible = !pointOccluded(
+    const cam = cameraWorldUnits(camera);
+    g.visible = !segmentHitsRect(
       sim.avatar.x,
       sim.avatar.y,
-      camera.position.x / WORLD_UNIT_TO_METERS,
-      camera.position.z / WORLD_UNIT_TO_METERS,
-      xU,
-      zU,
+      cam.x,
+      cam.y,
+      { x: xU - 90, y: zU - 20, w: 180, h: 40 },
+      12,
     );
     // the gate brightens slightly as the player approaches (§7)
     const dx = sim.avatar.x - xU;
@@ -607,14 +608,14 @@ export function EntranceFascia({ sim }: { sim: LabSim }) {
   useFrame(() => {
     const g = northRef.current;
     if (!g) return;
-    g.visible = !pointOccluded(
+    const cam = cameraWorldUnits(camera);
+    g.visible = !segmentHitsRect(
       sim.avatar.x,
       sim.avatar.y,
-      camera.position.x / WORLD_UNIT_TO_METERS,
-      camera.position.z / WORLD_UNIT_TO_METERS,
-      880,
-      800,
-      500,
+      cam.x,
+      cam.y,
+      { x: 680, y: 790, w: 400, h: 24 },
+      12,
     );
   });
   const band = (

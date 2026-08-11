@@ -5,7 +5,9 @@ import Link from "next/link";
 import type { OfficeGame } from "@/lib/game/engine";
 import { useOfficeRealtime } from "@/hooks/useOfficeRealtime";
 import { OfficeDataProvider } from "@/hooks/useOfficeData";
-import { useCurrentUser } from "@/lib/auth/SessionProvider";
+import { useCurrentUser, useSessionRole } from "@/lib/auth/SessionProvider";
+import AreaPanel from "@/components/panels/AreaPanel";
+import InteractionPrompt from "@/components/office/InteractionPrompt";
 import type { AreaId } from "@/types/office";
 import MiniMap from "@/components/office/MiniMap";
 import MobileJoystick from "@/components/office/MobileJoystick";
@@ -96,8 +98,13 @@ export default function OfficeLabShell() {
   const [currentArea, setCurrentArea] = useState<AreaId | null>(null);
   const [cardUserId, setCardUserId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [openArea, setOpenArea] = useState<AreaId | null>(null);
   const user = useCurrentUser();
+  const sessionRole = useSessionRole();
   const isMobile = useIsMobile();
+  // The lab route is member/admin only, so the viewer's role always
+  // comes from the real auth session.
+  const role = sessionRole;
 
   const realtime = useOfficeRealtime(gameRef, currentArea);
 
@@ -136,7 +143,7 @@ export default function OfficeLabShell() {
     return () => window.clearInterval(id);
   }, [sim]);
 
-  const overlayOpen = cardUserId !== null || editorOpen;
+  const overlayOpen = cardUserId !== null || editorOpen || openArea !== null;
   useEffect(() => {
     sim.setInputEnabled(!overlayOpen);
   }, [sim, overlayOpen]);
@@ -239,6 +246,33 @@ export default function OfficeLabShell() {
   const handleSelectPerson = useCallback((userId: string) => {
     setCardUserId(userId);
   }, []);
+  const openPanel = useCallback(() => {
+    setOpenArea((prev) => prev ?? currentArea);
+  }, [currentArea]);
+
+  // Same interaction contract as the 2D office: E opens the current
+  // area's panel, Escape closes it.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const t = e.target;
+      if (
+        t instanceof HTMLElement &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.tagName === "SELECT" ||
+          t.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === "Escape") {
+        setOpenArea(null);
+      } else if ((e.key === "e" || e.key === "E") && !e.metaKey && !e.ctrlKey) {
+        if (!overlayOpen) setOpenArea((prev) => prev ?? currentArea);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [currentArea, overlayOpen]);
 
   if (supported === false) {
     return (
@@ -308,7 +342,20 @@ export default function OfficeLabShell() {
           </Link>
         </div>
 
+        {currentArea && !overlayOpen ? (
+          <InteractionPrompt
+            area={currentArea}
+            mobile={isMobile}
+            onOpen={openPanel}
+            variant="lab"
+          />
+        ) : null}
+
         {isMobile ? <MobileJoystick onVector={handleJoystick} /> : null}
+
+        {openArea ? (
+          <AreaPanel areaId={openArea} role={role} onClose={() => setOpenArea(null)} />
+        ) : null}
 
         {cardUserId ? (
           <ProfileCard
