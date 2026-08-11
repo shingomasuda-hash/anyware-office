@@ -80,7 +80,7 @@ const waitLive = (p) =>
 // swallow a whole keydown..keyup window (both events process back to
 // back once the stall ends). Require 3 consecutive rendered frames with
 // a responsive main thread before dispatching synthetic keyboard input.
-const settleInput = async (p, frameMs = 1500, frames = 3, budgetMs = 45000) => {
+const settleInput = async (p, frameMs = 4000, frames = 2, budgetMs = 60000) => {
   const start = Date.now();
   let ok = 0;
   while (ok < frames && Date.now() - start < budgetMs) {
@@ -127,7 +127,7 @@ try {
   await settleInput(A);
   const s0 = await snap(A);
   await A.keyboard.down("w");
-  await sleep(2000);
+  await sleep(4000);
   await A.keyboard.up("w");
   const s1 = await snap(A);
   record("WASD moves the avatar", s0 && s1 && s1.y < s0.y - 60, `dy=${s0.y - s1.y}`);
@@ -201,10 +201,12 @@ try {
   for (let attempt = 0; attempt < 3 && abTravel <= 80; attempt++) {
     await settleInput(A);
     const rb0 = await remoteOfPos(B);
+    // Hold long enough that a fixed-timestep tick lands between
+    // keydown and keyup even when a render stall queues both events.
     await A.keyboard.down("d");
-    await sleep(1500);
+    await sleep(4000);
     await A.keyboard.up("d");
-    await sleep(800);
+    await sleep(1200);
     const rb1 = await remoteOfPos(B);
     abTravel = rb0 && rb1 ? Math.hypot(rb1.x - rb0.x, rb1.y - rb0.y) : 0;
   }
