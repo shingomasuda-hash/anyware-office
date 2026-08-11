@@ -161,7 +161,7 @@ export default function OfficeLabShell() {
 
   return (
     <OfficeDataProvider>
-      <div className="relative h-[100dvh] w-full overflow-hidden overscroll-none bg-[#dce9f2]">
+      <div className="relative h-[100dvh] w-full overflow-hidden overscroll-none bg-[#e3eef7]">
         {supported && user ? (
           <CanvasErrorBoundary>
             <div className="absolute inset-0" data-testid="office-lab-canvas">
@@ -180,32 +180,33 @@ export default function OfficeLabShell() {
 
         {!ready ? (
           <div
-            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-[#dce9f2]"
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-[#e3eef7]"
             data-testid="lab-loading"
           >
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-400 border-t-zinc-700" />
-            <p className="text-xs font-semibold tracking-[0.25em] text-zinc-500">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-sky-300 border-t-sky-600" />
+            <p className="text-xs font-semibold tracking-[0.25em] text-slate-500">
               ENTERING ANYWARE OFFICE…
             </p>
           </div>
         ) : null}
 
-        <OfficeHUD area={currentArea} />
-        <MiniMap gameRef={gameRef} currentArea={currentArea} />
+        <OfficeHUD area={currentArea} variant="lab" />
+        <MiniMap gameRef={gameRef} currentArea={currentArea} variant="lab" />
         <RealtimeHUD
           realtime={realtime}
           onSelectPerson={handleSelectPerson}
           onOpenProfile={openEditor}
+          variant="lab"
         />
 
         {/* lab badge + escape hatch back to the stable office */}
         <div className="absolute bottom-2 left-2 z-20 flex items-center gap-1.5">
-          <span className="rounded bg-zinc-900/80 px-2 py-1 text-[9px] font-bold tracking-[0.2em] text-zinc-100 backdrop-blur">
+          <span className="rounded-full border border-cyan-300/30 bg-[#0d1420]/75 px-2.5 py-1 text-[9px] font-bold tracking-[0.2em] text-cyan-100 backdrop-blur-md">
             OFFICE LAB · 3D PREVIEW
           </span>
           <Link
             href="/office"
-            className="rounded bg-white/80 px-2 py-1 text-[9px] font-semibold tracking-[0.15em] text-zinc-600 backdrop-blur transition-colors hover:bg-white"
+            className="rounded-full border border-white/50 bg-white/70 px-2.5 py-1 text-[9px] font-semibold tracking-[0.15em] text-slate-600 backdrop-blur-md transition-colors hover:bg-white"
           >
             2D OFFICE
           </Link>

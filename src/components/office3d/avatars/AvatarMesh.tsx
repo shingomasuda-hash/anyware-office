@@ -59,7 +59,13 @@ export default function AvatarMesh({
   const yaw = useRef(0);
 
   const bodyMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: identity.color, roughness: 0.85 }),
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: identity.color,
+        roughness: 0.7,
+        emissive: identity.color,
+        emissiveIntensity: 0.08,
+      }),
     [identity.color],
   );
   const legMat = useMemo(
@@ -71,7 +77,18 @@ export default function AvatarMesh({
       new THREE.MeshBasicMaterial({
         color: STATUS_COLORS[identity.status],
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.9,
+      }),
+    [identity.status],
+  );
+  const ringGlowMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: STATUS_COLORS[identity.status],
+        transparent: true,
+        opacity: 0.22,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
       }),
     [identity.status],
   );
@@ -114,9 +131,12 @@ export default function AvatarMesh({
 
   return (
     <group ref={group} onClick={onClick ? (e) => { e.stopPropagation(); onClick(); } : undefined}>
-      {/* status ring at the feet */}
+      {/* status ring at the feet + soft additive halo */}
       <mesh material={ringMat} rotation-x={-Math.PI / 2} position={[0, 0.03, 0]}>
         <ringGeometry args={[0.3, 0.36, 24]} />
+      </mesh>
+      <mesh material={ringGlowMat} rotation-x={-Math.PI / 2} position={[0, 0.025, 0]}>
+        <ringGeometry args={[0.24, 0.5, 24]} />
       </mesh>
       {/* soft blob shadow so avatars never float */}
       <mesh rotation-x={-Math.PI / 2} position={[0, 0.015, 0]}>
@@ -168,12 +188,14 @@ export default function AvatarMesh({
               display: "flex",
               alignItems: "center",
               gap: 6,
-              background: "rgba(255,255,255,0.92)",
-              border: "1px solid rgba(47,49,54,0.14)",
+              background: "rgba(13,20,32,0.74)",
+              border: "1px solid rgba(120,208,255,0.38)",
               borderRadius: 999,
-              padding: "3px 10px",
+              padding: "3px 11px",
               fontFamily: "system-ui, sans-serif",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+              boxShadow:
+                "0 2px 10px rgba(8,14,24,0.35), 0 0 14px rgba(99,214,255,0.18)",
+              backdropFilter: "blur(6px)",
             }}
           >
             <span
@@ -182,14 +204,22 @@ export default function AvatarMesh({
                 height: 7,
                 borderRadius: 999,
                 background: STATUS_COLORS[identity.status],
+                boxShadow: `0 0 6px ${STATUS_COLORS[identity.status]}`,
               }}
               title={STATUS_LABELS[identity.status]}
             />
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#2f3136" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#f2f8fd" }}>
               {identity.displayName}
             </span>
             {identity.department ? (
-              <span style={{ fontSize: 10, fontWeight: 500, color: "#8a8f98" }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 500,
+                  color: "#8fc6e8",
+                  letterSpacing: "0.04em",
+                }}
+              >
                 {identity.department}
               </span>
             ) : null}

@@ -13,7 +13,7 @@ import AvatarMesh, { type AvatarSample } from "./avatars/AvatarMesh";
 import { World } from "./world/World";
 import { worldTo3D } from "./world/scale";
 
-const SKY = "#dce9f2";
+const SKY = "#e3eef7";
 
 declare global {
   interface Window {
@@ -64,12 +64,12 @@ function Lights() {
   }, []);
   return (
     <>
-      <hemisphereLight args={["#eaf2f9", "#d8cfc0", 0.95]} />
+      <hemisphereLight args={["#edf5fc", "#dde2e8", 1.0]} />
       <directionalLight
         ref={light}
         position={[40, 30, -8]}
-        intensity={1.5}
-        color="#fff2df"
+        intensity={1.45}
+        color="#fff6e8"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -81,7 +81,12 @@ function Lights() {
         shadow-camera-far={90}
         shadow-bias={-0.0004}
       />
-      <ambientLight intensity={0.12} color="#fff6ea" />
+      <ambientLight intensity={0.12} color="#f2f7fd" />
+      {/* per-area accent fills — a hint of colored light gives each
+          room its own atmosphere without going neon-dark (§3) */}
+      <pointLight position={[19.7, 2.6, 25.2]} intensity={14} color="#a8dcff" distance={9} decay={2} />
+      <pointLight position={[4.7, 2.8, 2.7]} intensity={10} color="#eef4ff" distance={10} decay={2} />
+      <pointLight position={[30.7, 2.6, 3.5]} intensity={12} color="#9fd4ff" distance={9} decay={2} />
     </>
   );
 }

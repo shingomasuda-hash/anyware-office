@@ -122,6 +122,10 @@ function GlassWall({ r }: { r: Rect }) {
       <mesh material={MAT.glassMeeting} position={[0, WALL_HEIGHT_M / 2, 0]}>
         <boxGeometry args={[horizontal ? w : w * 0.3, WALL_HEIGHT_M, horizontal ? d * 0.3 : d]} />
       </mesh>
+      {/* light rail along the glass base */}
+      <mesh material={MAT.neonCyan} position={[0, 0.05, 0]}>
+        <boxGeometry args={[horizontal ? w : 0.04, 0.014, horizontal ? 0.04 : d]} />
+      </mesh>
       {[0.04, 1.0, WALL_HEIGHT_M - 0.04].map((fy) => (
         <mesh key={fy} material={MAT.windowFrame} position={[0, fy, 0]}>
           <boxGeometry args={[horizontal ? w : w * 0.5, 0.05, horizontal ? d * 0.5 : d]} />
@@ -155,10 +159,19 @@ function SolidWall({ r }: { r: Rect }) {
       <mesh material={MAT.baseboard} position={[0, 0.06, 0]}>
         <boxGeometry args={[w + 0.01, 0.12, d + 0.01]} />
       </mesh>
+      {/* accent light line floating just above the baseboard */}
+      <mesh material={MAT.neonCyan} position={[0, 0.16, 0]}>
+        <boxGeometry args={[w + 0.02, 0.012, d + 0.02]} />
+      </mesh>
     </group>
   );
 }
 
+/**
+ * Text panel. With `glow` the texture doubles as an emissive map, so
+ * the panel reads as a self-lit digital display instead of a printed
+ * signboard — the core "digital signage" device of STEP 4.9.1.
+ */
 function TextPanel({
   position,
   rotationY = 0,
@@ -166,6 +179,7 @@ function TextPanel({
   height,
   texture,
   backing = MAT.charcoal,
+  glow = false,
 }: {
   position: [number, number, number];
   rotationY?: number;
@@ -173,10 +187,17 @@ function TextPanel({
   height: number;
   texture: THREE.Texture;
   backing?: THREE.Material;
+  glow?: boolean;
 }) {
   const mat = useMemo(
-    () => new THREE.MeshStandardMaterial({ map: texture, roughness: 0.7 }),
-    [texture],
+    () =>
+      // Unlit for glow panels: the texture's authored colors ARE the
+      // emitted light, so navy stays navy even in direct sun (a lit
+      // material would wash the panel out to pale blue).
+      glow
+        ? new THREE.MeshBasicMaterial({ map: texture, toneMapped: false })
+        : new THREE.MeshStandardMaterial({ map: texture, roughness: 0.7 }),
+    [texture, glow],
   );
   return (
     <group position={position} rotation-y={rotationY}>
@@ -186,6 +207,11 @@ function TextPanel({
       <mesh material={mat}>
         <planeGeometry args={[width, height]} />
       </mesh>
+      {glow ? (
+        <mesh material={MAT.neonCyan} position={[0, -height / 2 - 0.055, 0.01]}>
+          <boxGeometry args={[width + 0.15, 0.018, 0.018]} />
+        </mesh>
+      ) : null}
     </group>
   );
 }
@@ -195,10 +221,10 @@ function Exterior() {
   const trees = useMemo(() => {
     const list: Array<{ x: number; z: number; s: number }> = [];
     const ring = [
-      ...Array.from({ length: 12 }, (_, i) => ({ x: -6 + i * 5, z: -5.5 })),
-      ...Array.from({ length: 12 }, (_, i) => ({ x: -6 + i * 5, z: 35.5 })),
-      ...Array.from({ length: 7 }, (_, i) => ({ x: -6, z: i * 5.5 })),
-      ...Array.from({ length: 7 }, (_, i) => ({ x: 50, z: i * 5.5 })),
+      ...Array.from({ length: 10 }, (_, i) => ({ x: -6 + i * 6, z: -5.5 })),
+      ...Array.from({ length: 10 }, (_, i) => ({ x: -6 + i * 6, z: 35.5 })),
+      ...Array.from({ length: 5 }, (_, i) => ({ x: -6, z: i * 7.5 })),
+      ...Array.from({ length: 5 }, (_, i) => ({ x: 50, z: i * 7.5 })),
     ];
     ring.forEach((p, i) => list.push({ ...p, s: 0.8 + ((i * 37) % 10) / 14 }));
     return list;
@@ -238,13 +264,14 @@ function Floors() {
           </mesh>
         );
       })}
-      {/* doorway thresholds keep their 2D accent colors */}
+      {/* doorway thresholds keep their 2D accent colors — rendered
+          unlit so they read as luminous guide strips, not paint */}
       {DOORWAYS.map((dw, i) => {
         const { cx, cz, w, d } = rectTo3D(dw.rect);
         return (
           <mesh key={i} rotation-x={-Math.PI / 2} position={[cx, 0.02, cz]}>
             <planeGeometry args={[w, d]} />
-            <meshStandardMaterial color={dw.accent} roughness={0.8} transparent opacity={0.55} />
+            <meshBasicMaterial color={dw.accent} transparent opacity={0.6} />
           </mesh>
         );
       })}
@@ -358,10 +385,16 @@ function AreaSign({
     () =>
       makeTextTexture(
         [
-          { text: AREA_BY_ID[area].label, size: 88, color: "#f5f5f2", weight: 700 },
-          { text: AREA_BY_ID[area].subtitle, size: 30, color: "#b9bdc4", weight: 500 },
+          { text: AREA_BY_ID[area].label, size: 88, color: "#bfeaff", weight: 700 },
+          { text: AREA_BY_ID[area].subtitle, size: 30, color: "#7d92ac", weight: 500 },
         ],
-        { width: 640, height: 200, background: "#2e3136", tracking: 6 },
+        {
+          width: 640,
+          height: 200,
+          background: "#101a2a",
+          backgroundTo: "#1c2c46",
+          tracking: 6,
+        },
       ),
     [area],
   );
@@ -381,7 +414,7 @@ function AreaSign({
   });
   return (
     <group ref={group}>
-      <TextPanel position={position} width={2.4} height={0.75} texture={tex} />
+      <TextPanel position={position} width={2.4} height={0.75} texture={tex} glow />
       {posts
         ? [-1.05, 1.05].map((px) => (
             <mesh
@@ -389,7 +422,7 @@ function AreaSign({
               material={MAT.windowFrame}
               position={[position[0] + px, position[1] / 2 - 0.19, position[2]]}
             >
-              <boxGeometry args={[0.05, position[1] - 0.38, 0.05]} />
+              <boxGeometry args={[0.04, position[1] - 0.38, 0.04]} />
             </mesh>
           ))
         : null}
@@ -407,11 +440,17 @@ function EntranceArea({ sim }: { sim: LabSim }) {
     () =>
       makeTextTexture(
         [
-          { text: "AnyWare", size: 120, color: "#f5f5f2", weight: 700 },
-          { text: "OFFICE", size: 64, color: "#9fd3b4", weight: 600 },
-          { text: "世の中をアップデートする。", size: 34, color: "#b9bdc4", weight: 500 },
+          { text: "AnyWare", size: 120, color: "#eaf6ff", weight: 700 },
+          { text: "OFFICE", size: 64, color: "#6fe9c8", weight: 600 },
+          { text: "世の中をアップデートする。", size: 34, color: "#9db4d4", weight: 500 },
         ],
-        { width: 1024, height: 512, background: "#2e3136", tracking: 8 },
+        {
+          width: 1024,
+          height: 512,
+          background: "#0e1726",
+          backgroundTo: "#233a5e",
+          tracking: 8,
+        },
       ),
     [],
   );
@@ -422,18 +461,37 @@ function EntranceArea({ sim }: { sim: LabSim }) {
       {[c.cx - 1.1, c.cx + 1.1].map((px) => (
         <Pendant key={px} position={[px, 2.4, c.cz]} />
       ))}
-      {/* brand wall on the west face — always in view while walking in,
-          and never between the south-anchored camera and the avatar */}
+      {/* digital brand wall on the west face — always in view while
+          walking in, never between the south camera and the avatar */}
       <TextPanel
         position={[u(b.x) + 0.55, 1.5, u(990)]}
         rotationY={Math.PI / 2}
         width={4.4}
         height={2.1}
         texture={brandTex}
+        glow
       />
+      {/* approach lane: light guides from the south door to reception */}
+      {[-0.5, 0.5].map((ox) => (
+        <mesh
+          key={ox}
+          material={MAT.neonCyan}
+          position={[u(788) + ox, 0.022, u(1090)]}
+        >
+          <boxGeometry args={[0.045, 0.008, 4.2]} />
+        </mesh>
+      ))}
+      <mesh material={MAT.holo} rotation-x={-Math.PI / 2} position={[u(788), 0.026, u(1008)]}>
+        <ringGeometry args={[0.5, 0.72, 32]} />
+      </mesh>
       {/* waiting corner against the east wall */}
       <Rug position={[east - 1.2, 0.02, u(1060)]} radius={1.5} />
-      <Sofa position={[east - 0.55, 0, u(1060)]} rotationY={-Math.PI / 2} width={2.2} />
+      <Sofa
+        position={[east - 0.55, 0, u(1060)]}
+        rotationY={-Math.PI / 2}
+        width={2.2}
+        mat={MAT.fabricGreen}
+      />
       <CoffeeTable position={[east - 1.9, 0, u(1060)]} />
       <PlantTall position={[east - 0.5, 0, u(980)]} scale={0.85} />
       {/* map plants (collision-linked) */}
@@ -473,7 +531,7 @@ function StaffArea({ sim }: { sim: LabSim }) {
         return <PlantTall key={i} position={[p.cx, 0, p.cz]} scale={0.9} />;
       })}
       <PlantSmall position={[u(40), 0, u(380)]} />
-      <Rug position={[u(255), 0.02, u(210)]} radius={1.7} />
+      <Rug position={[u(255), 0.02, u(210)]} radius={1.2} />
       <WhiteBoard position={[u(346) - 0.35, 0, u(150)]} rotationY={-Math.PI / 2} />
       <PlantSmall position={[u(330), 0, u(60)]} />
       <AreaSign area="STAFF" position={[u(189), 2.25, u(416) + 0.09]} sim={sim} />
@@ -488,21 +546,16 @@ function MeetingArea({ sim }: { sim: LabSim }) {
     () =>
       makeTextTexture(
         [
-          { text: "AnyWare OFFICE", size: 72, color: "#dfe8ee", weight: 700 },
-          { text: "Weekly Sync — MEETING ROOM A", size: 36, color: "#8fa8bd", weight: 500 },
+          { text: "AnyWare OFFICE", size: 72, color: "#e8f4fc", weight: 700 },
+          { text: "Weekly Sync — MEETING ROOM A", size: 36, color: "#8fc6e8", weight: 500 },
         ],
-        { width: 1024, height: 512, background: "#141a22" },
+        { width: 1024, height: 512, background: "#0d1524", backgroundTo: "#1d3450" },
       ),
     [],
   );
   const screenMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        map: screenTex,
-        emissive: "#2a3947",
-        emissiveIntensity: 0.6,
-        roughness: 0.35,
-      }),
+    // Unlit: the display's authored colors are the emitted light.
+    () => new THREE.MeshBasicMaterial({ map: screenTex, toneMapped: false }),
     [screenTex],
   );
   return (
@@ -517,13 +570,17 @@ function MeetingArea({ sim }: { sim: LabSim }) {
           </group>
         );
       })}
-      {/* large display on the solid north wall */}
+      {/* large display on the solid north wall — a glowing digital
+          presence wall rather than a mounted TV */}
       <group position={[u(b.x + b.w / 2), 1.55, u(b.y) + 0.45]}>
-        <mesh material={MAT.charcoal} position={[0, 0, -0.03]} castShadow>
-          <boxGeometry args={[3.5, 1.95, 0.06]} />
+        <mesh material={MAT.matteSilver} position={[0, 0, -0.03]} castShadow>
+          <boxGeometry args={[3.56, 2.0, 0.06]} />
         </mesh>
         <mesh material={screenMat}>
           <planeGeometry args={[3.3, 1.78]} />
+        </mesh>
+        <mesh material={MAT.neonCyan} position={[0, -1.03, 0.01]}>
+          <boxGeometry args={[3.56, 0.02, 0.02]} />
         </mesh>
       </group>
       <PlantTall position={[u(b.x) + 0.7, 0, u(b.y) + 0.8]} />

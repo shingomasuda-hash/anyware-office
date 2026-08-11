@@ -59,10 +59,13 @@ export default function RealtimeHUD({
   realtime,
   onSelectPerson,
   onOpenProfile,
+  variant = "default",
 }: {
   realtime: OfficeRealtimeState;
   onSelectPerson: (userId: string, isSelf: boolean) => void;
   onOpenProfile: () => void;
+  /** "lab" applies the 3D office-lab glass styling; default is untouched. */
+  variant?: "default" | "lab";
 }) {
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
@@ -93,12 +96,23 @@ export default function RealtimeHUD({
 
   if (!realtime.enabled) return null;
 
+  const lab = variant === "lab";
+  const chip = lab
+    ? "border-cyan-200/25 bg-[#0d1420]/70 text-cyan-50/90 shadow-[0_2px_10px_rgba(8,14,24,0.35)] backdrop-blur-md"
+    : "border-zinc-200/70 bg-white/85 text-zinc-600 shadow-sm backdrop-blur dark:border-zinc-700/70 dark:bg-zinc-900/85 dark:text-zinc-300";
+  const chipHover = lab
+    ? "transition-colors hover:bg-[#16233a]/80"
+    : "transition-colors hover:bg-white dark:hover:bg-zinc-900";
+  const panel = lab
+    ? "rounded-2xl border border-white/50 bg-white/80 shadow-xl backdrop-blur-xl"
+    : "rounded-xl border border-zinc-200/70 bg-white/95 shadow-lg backdrop-blur dark:border-zinc-700/70 dark:bg-zinc-900/95";
+
   return (
     <div className="absolute left-3 top-3 z-20 flex flex-col items-start gap-1.5">
       <div className="flex items-center gap-1.5">
         <span
           data-testid="realtime-status"
-          className="flex items-center gap-1.5 rounded-full border border-zinc-200/70 bg-white/85 px-2.5 py-1 text-[10px] font-semibold tracking-[0.15em] text-zinc-600 shadow-sm backdrop-blur dark:border-zinc-700/70 dark:bg-zinc-900/85 dark:text-zinc-300"
+          className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-[0.15em] ${chip}`}
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[realtime.status]}`}
@@ -114,7 +128,7 @@ export default function RealtimeHUD({
             setStatusOpen(false);
           }}
           aria-expanded={peopleOpen}
-          className="rounded-full border border-zinc-200/70 bg-white/85 px-2.5 py-1 text-[10px] font-semibold tracking-[0.15em] text-zinc-600 shadow-sm backdrop-blur transition-colors hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/85 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-[0.15em] ${chip} ${chipHover}`}
         >
           ONLINE {realtime.onlineCount}
         </button>
@@ -128,7 +142,7 @@ export default function RealtimeHUD({
             }}
             aria-expanded={statusOpen}
             aria-haspopup="menu"
-            className="flex items-center gap-1.5 rounded-full border border-zinc-200/70 bg-white/85 px-2.5 py-1 text-[10px] font-semibold tracking-[0.15em] text-zinc-600 shadow-sm backdrop-blur transition-colors hover:bg-white dark:border-zinc-700/70 dark:bg-zinc-900/85 dark:text-zinc-300 dark:hover:bg-zinc-900"
+            className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-[0.15em] ${chip} ${chipHover}`}
           >
             <span
               className="h-1.5 w-1.5 rounded-full"
@@ -141,7 +155,7 @@ export default function RealtimeHUD({
             <div
               role="menu"
               data-testid="status-menu"
-              className="absolute left-0 top-8 w-40 rounded-xl border border-zinc-200/70 bg-white/95 p-1 shadow-lg backdrop-blur dark:border-zinc-700/70 dark:bg-zinc-900/95"
+              className={`absolute left-0 top-8 w-40 p-1 ${panel}`}
             >
               {MANUAL_STATUSES.map((s) => (
                 <button
@@ -186,7 +200,7 @@ export default function RealtimeHUD({
       {peopleOpen ? (
         <div
           data-testid="online-panel"
-          className="w-64 rounded-xl border border-zinc-200/70 bg-white/95 p-2 shadow-lg backdrop-blur dark:border-zinc-700/70 dark:bg-zinc-900/95"
+          className={`w-64 p-2 ${panel}`}
         >
           <input
             type="search"
