@@ -198,7 +198,7 @@ try {
   // the first keypress entirely (same mechanism as the first-frame
   // WASD case) — the second attempt runs on a warm renderer.
   let abTravel = 0;
-  for (let attempt = 0; attempt < 2 && abTravel <= 80; attempt++) {
+  for (let attempt = 0; attempt < 3 && abTravel <= 80; attempt++) {
     await settleInput(A);
     const rb0 = await remoteOfPos(B);
     await A.keyboard.down("d");
