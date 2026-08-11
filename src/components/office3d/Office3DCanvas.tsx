@@ -8,6 +8,7 @@ import { buildIdentity, type AvatarIdentity } from "@/lib/identity/identity";
 import type { RosterEntry } from "@/lib/realtime/types";
 import type { CurrentUser } from "@/lib/auth/types";
 import type { EffectiveStatus } from "@/lib/identity/identity";
+import type { Direction } from "@/types/office";
 import type { LabSim } from "./LabSim";
 import AvatarMesh, { type AvatarSample } from "./avatars/AvatarMesh";
 import { World } from "./world/World";
@@ -30,30 +31,53 @@ declare global {
   }
 }
 
+/** Facing vector per 4-way direction (world units: +y is south). */
+const DIR_VEC: Record<Direction, [number, number]> = {
+  up: [0, -1],
+  down: [0, 1],
+  left: [-1, 0],
+  right: [1, 0],
+};
+
+/**
+ * Chase camera: swings smoothly to sit BEHIND the walking direction,
+ * so turning right or walking back turns the view with you. Height /
+ * distance / pitch stay fixed (elevated third person).
+ */
 function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
   const camera = useThree((s) => s.camera);
   const vDesired = useMemo(() => new THREE.Vector3(), []);
   const vLook = useMemo(() => new THREE.Vector3(), []);
   const first = useRef(true);
   const lastT = useRef(performance.now());
+  const camYaw = useRef(0); // 0 = camera south of avatar, looking north
   // Mobile rides a little higher and further back so the tall viewport
   // shows the world's depth instead of a giant avatar (§23).
   const camY = isMobile ? 3.9 : 3.15;
-  const camZ = isMobile ? 4.9 : 3.9;
-  const lookZ = isMobile ? -2.4 : -1.7;
+  const camDist = isMobile ? 4.9 : 3.9;
+  const lookAhead = isMobile ? 2.4 : 1.7;
   useFrame(() => {
     const now = performance.now();
     const dt = Math.min((now - lastT.current) / 1000, 0.3);
     lastT.current = now;
+    const [fx, fz] = DIR_VEC[sim.avatar.direction];
+    // camera offset direction is opposite the facing vector
+    const targetYaw = Math.atan2(-fx, -fz);
+    let dy = targetYaw - camYaw.current;
+    while (dy > Math.PI) dy -= Math.PI * 2;
+    while (dy < -Math.PI) dy += Math.PI * 2;
+    camYaw.current += dy * (first.current ? 1 : 1 - Math.exp(-3.2 * dt));
+    const ox = Math.sin(camYaw.current);
+    const oz = Math.cos(camYaw.current);
     const [x, , z] = worldTo3D(sim.avatar.x, sim.avatar.y);
-    vDesired.set(x, camY, z + camZ);
+    vDesired.set(x + ox * camDist, camY, z + oz * camDist);
     if (first.current) {
       camera.position.copy(vDesired);
       first.current = false;
     } else {
       camera.position.lerp(vDesired, 1 - Math.exp(-4.5 * dt));
     }
-    vLook.set(x, 1.05, z + lookZ);
+    vLook.set(x - ox * lookAhead, 1.05, z - oz * lookAhead);
     camera.lookAt(vLook);
   });
   return null;

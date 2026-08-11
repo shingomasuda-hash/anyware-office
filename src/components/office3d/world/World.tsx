@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useLayoutEffect, useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { LabSim } from "../LabSim";
 import {
@@ -31,6 +31,7 @@ import {
 } from "./Furniture";
 import { MAT, makeTextTexture } from "./materials";
 import { rectTo3D, u, WALL_HEIGHT_M } from "./scale";
+import { axisBetween, useViewOcclusion } from "./occlusion";
 import {
   FloatingOrbs,
   MetaCity,
@@ -232,19 +233,29 @@ function buildWalls() {
 
 function Walls({ sim }: { sim: LabSim }) {
   const { classified, silver, neon } = useMemo(buildWalls, []);
+  const camera = useThree((s) => s.camera);
   const groupRefs = useRef<Array<THREE.Group | null>>([]);
   const silverRef = useRef<THREE.InstancedMesh>(null);
   const neonRef = useRef<THREE.InstancedMesh>(null);
   const hiddenKey = useRef("");
 
+  // Camera-relative dollhouse: with the chase camera swinging behind
+  // the walking direction, walls on ANY side can sit between avatar
+  // and camera — horizontal walls hide against the z-axis span,
+  // vertical walls against the x-axis span.
   const computeHidden = () => {
     const ay = sim.avatar.y;
     const ax = sim.avatar.x;
+    const camUx = camera.position.x / 0.025;
+    const camUy = camera.position.z / 0.025;
     const hidden = new Set<number>();
     for (let i = 0; i < classified.length; i++) {
       const { r, horizontal } = classified[i];
-      if (!horizontal || r.h !== WALL_T) continue;
-      if (r.y > ay + 8 && r.y < ay + 230 && r.x < ax + 340 && r.x + r.w > ax - 340) hidden.add(i);
+      if (horizontal && r.h === WALL_T) {
+        if (axisBetween(ay, camUy, r.y) && r.x < ax + 340 && r.x + r.w > ax - 340) hidden.add(i);
+      } else if (!horizontal && r.w === WALL_T) {
+        if (axisBetween(ax, camUx, r.x) && r.y < ay + 340 && r.y + r.h > ay - 340) hidden.add(i);
+      }
     }
     return hidden;
   };
@@ -389,24 +400,6 @@ function MassingFurniture() {
   );
 }
 
-/**
- * Dollhouse occlusion shared by world set-pieces: hide the group while
- * it sits between the south-anchored camera and the avatar.
- */
-function useSouthOcclusion(sim: LabSim, xUnits: number, yUnits: number, halfWidth = 340) {
-  const group = useRef<THREE.Group>(null);
-  useFrame(() => {
-    const g = group.current;
-    if (!g) return;
-    const occludes =
-      yUnits > sim.avatar.y + 8 &&
-      yUnits < sim.avatar.y + 230 &&
-      Math.abs(xUnits - sim.avatar.x) < halfWidth;
-    g.visible = !occludes;
-  });
-  return group;
-}
-
 function AreaSign({
   area,
   position,
@@ -435,7 +428,7 @@ function AreaSign({
       ),
     [area],
   );
-  const group = useSouthOcclusion(sim, position[0] / 0.025, position[2] / 0.025);
+  const group = useViewOcclusion(sim, position[0] / 0.025, position[2] / 0.025);
   return (
     <group ref={group}>
       <TextPanel position={position} width={2.4} height={0.75} texture={tex} glow />
@@ -478,7 +471,7 @@ function RooftopBillboard({
   const b = AREA_BY_ID[area].bounds;
   const cxUnits = b.x + b.w / 2;
   const cyUnits = b.y + b.h / 2;
-  const group = useSouthOcclusion(sim, cxUnits, cyUnits, 400);
+  const group = useViewOcclusion(sim, cxUnits, cyUnits, 400);
   const tex = useMemo(
     () =>
       makeTextTexture(

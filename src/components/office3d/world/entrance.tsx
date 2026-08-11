@@ -2,13 +2,14 @@
 
 import { useMemo, useRef, useState } from "react";
 import { Html } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { LabSim } from "../LabSim";
 import { AREA_BY_ID } from "@/lib/game/map";
 import type { AreaId } from "@/types/office";
 import { MAT, makeTextTexture } from "./materials";
-import { u } from "./scale";
+import { pointOccluded } from "./occlusion";
+import { u, WORLD_UNIT_TO_METERS } from "./scale";
 
 // ENTRANCE = WORLD ARRIVAL HUB (STEP 4.9.2 Milestone A.1 — FUTURE
 // IMMERSION PASS). Direction: Premium Office 60 / Near Future 30 /
@@ -370,14 +371,20 @@ export function RingGate({ sim }: { sim: LabSim }) {
   const group = useRef<THREE.Group>(null);
   const pulse = useRef<THREE.MeshBasicMaterial>(null);
   const glowBase = useRef(0.5);
+  const camera = useThree((s) => s.camera);
   const xU = 880;
   const zU = 806;
   useFrame(() => {
     const g = group.current;
     if (!g) return;
-    const occludes =
-      zU > sim.avatar.y + 8 && zU < sim.avatar.y + 230 && Math.abs(xU - sim.avatar.x) < 340;
-    g.visible = !occludes;
+    g.visible = !pointOccluded(
+      sim.avatar.x,
+      sim.avatar.y,
+      camera.position.x / WORLD_UNIT_TO_METERS,
+      camera.position.z / WORLD_UNIT_TO_METERS,
+      xU,
+      zU,
+    );
     // the gate brightens slightly as the player approaches (§7)
     const dx = sim.avatar.x - xU;
     const dy = sim.avatar.y - zU;
@@ -596,13 +603,19 @@ export function EntranceFascia({ sim }: { sim: LabSim }) {
   const wLen = east - west;
   const dLen = south - north;
   const northRef = useRef<THREE.Group>(null);
+  const camera = useThree((s) => s.camera);
   useFrame(() => {
     const g = northRef.current;
     if (!g) return;
-    const occludes =
-      800 > sim.avatar.y + 8 && 800 < sim.avatar.y + 230 &&
-      Math.abs(880 - sim.avatar.x) < 500;
-    g.visible = !occludes;
+    g.visible = !pointOccluded(
+      sim.avatar.x,
+      sim.avatar.y,
+      camera.position.x / WORLD_UNIT_TO_METERS,
+      camera.position.z / WORLD_UNIT_TO_METERS,
+      880,
+      800,
+      500,
+    );
   });
   const band = (
     p: readonly [number, number, number],
