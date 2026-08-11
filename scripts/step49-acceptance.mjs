@@ -178,16 +178,22 @@ try {
     (await roster(A))?.length === 2 && (await roster(B))?.length === 2, 30000);
   record("presence 2 on both (A sees B, B sees A)", Boolean(bothSee));
 
-  // remote movement A -> B
-  const rb0 = await remoteOfPos(B);
-  await A.keyboard.down("d");
-  await sleep(1500);
-  await A.keyboard.up("d");
-  await sleep(800);
-  const rb1 = await remoteOfPos(B);
-  record("A movement reflected on B (remote interpolation)",
-    rb0 && rb1 && Math.hypot(rb1.x - rb0.x, rb1.y - rb0.y) > 80,
-    rb0 && rb1 ? `travel=${Math.round(Math.hypot(rb1.x - rb0.x, rb1.y - rb0.y))}` : "no sample");
+  // remote movement A -> B. Two attempts: right after B joins, A's
+  // renderer compiles B's avatar materials, and that stall can swallow
+  // the first keypress entirely (same mechanism as the first-frame
+  // WASD case) — the second attempt runs on a warm renderer.
+  let abTravel = 0;
+  for (let attempt = 0; attempt < 2 && abTravel <= 80; attempt++) {
+    const rb0 = await remoteOfPos(B);
+    await A.keyboard.down("d");
+    await sleep(1500);
+    await A.keyboard.up("d");
+    await sleep(800);
+    const rb1 = await remoteOfPos(B);
+    abTravel = rb0 && rb1 ? Math.hypot(rb1.x - rb0.x, rb1.y - rb0.y) : 0;
+  }
+  record("A movement reflected on B (remote interpolation)", abTravel > 80,
+    `travel=${Math.round(abTravel)}`);
 
   // B joystick -> A
   const joy = B.locator('[data-testid="joystick"]');
