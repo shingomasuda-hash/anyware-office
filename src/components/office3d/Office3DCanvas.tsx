@@ -8,7 +8,7 @@ import { buildIdentity, type AvatarIdentity } from "@/lib/identity/identity";
 import type { RosterEntry } from "@/lib/realtime/types";
 import type { CurrentUser } from "@/lib/auth/types";
 import type { EffectiveStatus } from "@/lib/identity/identity";
-import type { Direction } from "@/types/office";
+import type { AreaId, Direction } from "@/types/office";
 import type { LabSim } from "./LabSim";
 import AvatarMesh, { type AvatarSample } from "./avatars/AvatarMesh";
 import { World } from "./world/World";
@@ -39,6 +39,17 @@ const DIR_VEC: Record<Direction, [number, number]> = {
   down: [0, 1],
   left: [-1, 0],
   right: [1, 0],
+};
+
+/**
+ * Per-district framing (§19). ENTRANCE opens up to show the arrival
+ * plaza; MEETING pulls in so you feel inside the pavilion; the rest
+ * keep the campus default. Values are eased, never snapped.
+ */
+const AREA_CAM: Partial<Record<AreaId, { y: number; dist: number; look: number }>> = {
+  ENTRANCE: { y: 8.2, dist: 10.4, look: 4.2 },
+  STAFF: { y: 6.6, dist: 8.4, look: 3.3 },
+  MEETING: { y: 5.9, dist: 7.4, look: 2.9 },
 };
 
 const MIN_BOOM = 3.4; // metres — closest the camera may tuck in
@@ -113,9 +124,11 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
   const camYaw = useRef(0); // 0 = camera south of avatar, looking north
   // Mobile rides a little higher and further back so the tall viewport
   // shows the world's depth instead of a giant avatar (§23).
-  const camY = isMobile ? 8.2 : 6.8;
-  const camDist = isMobile ? 10.5 : 8.6;
-  const lookAhead = isMobile ? 4.6 : 3.4;
+  const baseY = isMobile ? 8.2 : 6.8;
+  const baseDist = isMobile ? 10.5 : 8.6;
+  const baseLook = isMobile ? 4.6 : 3.4;
+  // eased per-district framing
+  const framing = useRef({ y: baseY, dist: baseDist, look: baseLook });
   useFrame(() => {
     const now = performance.now();
     const dt = Math.min((now - lastT.current) / 1000, 0.3);
@@ -129,6 +142,20 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
     camYaw.current += dy * (first.current ? 1 : 1 - Math.exp(-3.2 * dt));
     const ox = Math.sin(camYaw.current);
     const oz = Math.cos(camYaw.current);
+    // ease toward this district's framing
+    const area = sim.getSnapshot().area;
+    const want = (area && AREA_CAM[area]) || null;
+    const mobileScale = isMobile ? 1.22 : 1;
+    const tY = want ? want.y * mobileScale : baseY;
+    const tD = want ? want.dist * mobileScale : baseDist;
+    const tL = want ? want.look * mobileScale : baseLook;
+    const k = first.current ? 1 : 1 - Math.exp(-1.6 * dt);
+    framing.current.y += (tY - framing.current.y) * k;
+    framing.current.dist += (tD - framing.current.dist) * k;
+    framing.current.look += (tL - framing.current.look) * k;
+    const camY = framing.current.y;
+    const camDist = framing.current.dist;
+    const lookAhead = framing.current.look;
     // Spring arm: shorten the boom so the camera never passes through a
     // wall. Standing in a room and turning around used to push the
     // camera outside, which made the whole wall vanish; now the camera

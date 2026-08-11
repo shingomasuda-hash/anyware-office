@@ -178,11 +178,11 @@ export function FloatingCeiling() {
     s: [number, number];
     m: THREE.Material;
   }> = [
-    { p: [u(812), 7.4, u(960)], s: [13.2, 6.0], m: MAT.wallPaint },
-    { p: [u(952), 6.9, u(1028)], s: [9.0, 4.8], m: MAT.pearl },
-    { p: [u(860), 6.4, u(1080)], s: [7.8, 3.9], m: MAT.warmCeramic },
-    { p: [u(984), 7.7, u(908)], s: [6.9, 3.75], m: MAT.wallPaint },
-    { p: [u(888), 6.6, u(992)], s: [6.3, 3.45], m: MAT.softGlow },
+    { p: [u(812), 10.4, u(960)], s: [10.5, 4.8], m: MAT.frost },
+    { p: [u(952), 9.8, u(1028)], s: [7.2, 3.8], m: MAT.frost },
+    { p: [u(860), 9.2, u(1080)], s: [6.2, 3.1], m: MAT.frost },
+    { p: [u(984), 10.7, u(908)], s: [5.5, 3.0], m: MAT.frost },
+    { p: [u(888), 9.5, u(992)], s: [5.0, 2.8], m: MAT.softGlow },
   ];
   return (
     <group ref={group}>
@@ -195,8 +195,8 @@ export function FloatingCeiling() {
       ))}
       {/* thin light seams between panel layers */}
       {[
-        { p: [u(876), 7.05, u(996)] as const, l: 10.2 },
-        { p: [u(928), 6.7, u(1008)] as const, l: 7.8 },
+        { p: [u(876), 9.9, u(996)] as const, l: 8.2 },
+        { p: [u(928), 9.4, u(1008)] as const, l: 6.4 },
       ].map((sm, i) => (
         <mesh key={i} material={MAT.neonWhite} position={[sm.p[0], sm.p[1], sm.p[2]]}>
           <boxGeometry args={[sm.l, 0.012, 0.012]} />

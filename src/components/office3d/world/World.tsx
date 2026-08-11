@@ -15,19 +15,12 @@ import {
 } from "@/lib/game/map";
 import type { AreaId, Rect } from "@/types/office";
 import {
-  ChairField,
   CoffeeTable,
-  DeskBank,
-  MeetingTable,
-  meetingChairSpecs,
   PlantSmall,
   PlantTall,
   Reception,
   Rug,
-  Shelf,
   Sofa,
-  TableProps,
-  WhiteBoard,
 } from "./Furniture";
 import { MAT, makeTextTexture } from "./materials";
 import { rectTo3D, rectToFurniture, u, WALL_HEIGHT_M, WORLD_SCALE_RATIO } from "./scale";
@@ -43,6 +36,7 @@ import {
   type InstanceSpec,
 } from "./effects";
 import { AreaGateways } from "./gateways";
+import { CentralSpine } from "./spine";
 import { RoomIdentity, ROOM_THEMES, useRoomFloor } from "./rooms";
 import {
   ArrivalPlatform,
@@ -570,115 +564,14 @@ function EntranceArea({ sim }: { sim: LabSim }) {
   );
 }
 
+/** STAFF / MEETING interiors live in districts.tsx (LOD-managed);
+ * these keep only the doorway signage that belongs to the corridor. */
 function StaffArea({ sim }: { sim: LabSim }) {
-  const b = AREA_BY_ID.STAFF.bounds; // 16,16 346x400
-  const desks = FURNITURE.filter(
-    (f) => f.kind === "desk" && f.rect.x < 362 && f.rect.y < 416,
-  );
-  return (
-    <group>
-      {desks.map((f, i) => {
-        const p = rectToFurniture(f.rect);
-        return (
-          <group key={i}>
-            <DeskBank cx={p.cx} cz={p.cz} w={p.w} d={p.d} chairSide={i === 0 ? 1 : -1} />
-            {/* holo project board hovering over the bank */}
-            <mesh material={MAT.holo} position={[p.cx, 2.5, p.cz]}>
-              <planeGeometry args={[p.w * 1.1, 0.8]} />
-            </mesh>
-            <mesh material={MAT.neonCyan} position={[p.cx, 2.94, p.cz]}>
-              <boxGeometry args={[p.w * 1.1, 0.02, 0.02]} />
-            </mesh>
-          </group>
-        );
-      })}
-      {/* shelving along the north wall + a soft partition */}
-      <Shelf position={[u(b.x) + 1.6, 0, u(b.y) + 0.62]} width={2.2} />
-      <Shelf position={[u(b.x) + 4.2, 0, u(b.y) + 0.62]} width={2.2} />
-      {/* lounge corner south side */}
-      <Sofa position={[u(120), 0, u(365)]} rotationY={0} width={1.8} mat={MAT.fabricGreen} />
-      <CoffeeTable position={[u(120), 0, u(322)]} />
-      <PlantTall position={[u(330), 0, u(365)]} />
-      {FURNITURE.filter((f) => f.kind === "plant" && f.rect.x === 312).map((f, i) => {
-        const p = rectToFurniture(f.rect);
-        return <PlantTall key={i} position={[p.cx, 0, p.cz]} scale={0.9} />;
-      })}
-      <PlantSmall position={[u(40), 0, u(380)]} />
-      <Rug position={[u(255), 0.02, u(210)]} radius={1.2} />
-      <WhiteBoard position={[u(346) - 0.35, 0, u(150)]} rotationY={-Math.PI / 2} />
-      <PlantSmall position={[u(330), 0, u(60)]} />
-      <AreaSign area="STAFF" position={[u(189), 4.2, u(416) + 0.2]} sim={sim} />
-    </group>
-  );
+  return <AreaSign area="STAFF" position={[u(189), 4.2, u(416) + 0.2]} sim={sim} />;
 }
 
 function MeetingArea({ sim }: { sim: LabSim }) {
-  const tables = FURNITURE.filter((f) => f.kind === "table" && f.rect.y < 416);
-  const b = AREA_BY_ID.MEETING.bounds;
-  const chairs = useMemo(
-    () =>
-      tables.flatMap((f) => {
-        const p = rectToFurniture(f.rect);
-        return meetingChairSpecs(p.cx, p.cz, p.w, p.d);
-      }),
-    [tables],
-  );
-  const screenTex = useMemo(
-    () =>
-      makeTextTexture(
-        [
-          { text: "AnyWare OFFICE", size: 72, color: "#e8f4fc", weight: 700 },
-          { text: "Weekly Sync — MEETING ROOM A", size: 36, color: "#8fc6e8", weight: 500 },
-        ],
-        { width: 1024, height: 512, background: "#0d1524", backgroundTo: "#1d3450" },
-      ),
-    [],
-  );
-  const screenMat = useMemo(
-    // Unlit: the display's authored colors are the emitted light.
-    () => new THREE.MeshBasicMaterial({ map: screenTex, toneMapped: false }),
-    [screenTex],
-  );
-  return (
-    <group>
-      <ChairField chairs={chairs} />
-      {tables.map((f, i) => {
-        const p = rectToFurniture(f.rect);
-        return (
-          <group key={i}>
-            <MeetingTable cx={p.cx} cz={p.cz} w={p.w} d={p.d} />
-            <TableProps position={[p.cx - 0.5, 0.775, p.cz + 0.15]} rotationY={0.4} />
-            <TableProps position={[p.cx + 0.55, 0.775, p.cz - 0.12]} rotationY={Math.PI - 0.3} />
-            {/* halo ring floating over each pod — the purple accent
-                marks the meeting zone's shifted atmosphere */}
-            <mesh
-              material={MAT.holoPurple}
-              rotation-x={Math.PI / 2}
-              position={[p.cx, 3.1, p.cz]}
-            >
-              <torusGeometry args={[Math.min(p.w, p.d) * 0.55, 0.05, 8, 36]} />
-            </mesh>
-          </group>
-        );
-      })}
-      {/* large display on the solid north wall — a glowing digital
-          presence wall rather than a mounted TV */}
-      <group position={[u(b.x + b.w / 2), 2.9, u(b.y) + 0.7]}>
-        <mesh material={MAT.matteSilver} position={[0, 0, -0.05]} castShadow>
-          <boxGeometry args={[7.2, 4.05, 0.1]} />
-        </mesh>
-        <mesh material={screenMat}>
-          <planeGeometry args={[6.9, 3.7]} />
-        </mesh>
-        <mesh material={MAT.neonCyan} position={[0, -2.1, 0.02]}>
-          <boxGeometry args={[7.2, 0.04, 0.04]} />
-        </mesh>
-      </group>
-      <PlantTall position={[u(b.x) + 0.7, 0, u(b.y) + 0.8]} />
-      <PlantTall position={[u(b.x + b.w) - 0.7, 0, u(b.y + b.h) - 0.9]} scale={0.9} />
-      <AreaSign area="MEETING" position={[u(1227), 4.2, u(416) + 0.2]} sim={sim} />
-    </group>
-  );
+  return <AreaSign area="MEETING" position={[u(1227), 4.2, u(416) + 0.2]} sim={sim} />;
 }
 
 function WorldImpl({ sim }: { sim: LabSim }) {
@@ -706,6 +599,7 @@ function WorldImpl({ sim }: { sim: LabSim }) {
       <EntranceArea sim={sim} />
       <StaffArea sim={sim} />
       <MeetingArea sim={sim} />
+      <CentralSpine />
     </group>
   );
 }

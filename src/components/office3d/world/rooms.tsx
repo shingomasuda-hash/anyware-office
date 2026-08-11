@@ -8,38 +8,17 @@ import type { AreaId } from "@/types/office";
 import type { LabSim } from "../LabSim";
 import { MAT, makeTextTexture } from "./materials";
 import { u } from "./scale";
+import { ROOM_THEMES } from "./themes";
 import { TwoSidedSign } from "./effects";
 import { OfficeChair } from "./Furniture";
+import { MeetingDistrict, StaffDistrict } from "./districts";
+
+export { ROOM_THEMES } from "./themes";
 
 // Per-room world building (STEP 4.9.3). Every district in the hall gets
 // its own atmosphere — floor treatment, accent color, signature volumes
 // — so walking between rooms feels like moving through neighbourhoods of
 // one metaverse campus rather than repeating gray boxes.
-
-/** Room identity: the accent that lights the space and paints the floor. */
-export interface RoomTheme {
-  /** floor tint */
-  floor: string;
-  /** accent used by light rails, holo props and glow */
-  accent: string;
-  /** soft ambient fill color for the room's key light */
-  light: string;
-  /** how the floor pattern is drawn */
-  pattern: "grid" | "rings" | "rows" | "hex" | "waves" | "scatter";
-}
-
-export const ROOM_THEMES: Record<AreaId, RoomTheme> = {
-  ENTRANCE: { floor: "#eef2f6", accent: "#3ec9f5", light: "#fff3e4", pattern: "rings" },
-  STAFF: { floor: "#e7ebe6", accent: "#46e0b4", light: "#eaf7f1", pattern: "scatter" },
-  SIGNAL: { floor: "#efe9f4", accent: "#f26bd8", light: "#f7e6fb", pattern: "waves" },
-  PARTNER: { floor: "#eaeaf6", accent: "#a88cff", light: "#eeeaff", pattern: "hex" },
-  TABLE: { floor: "#f4ede2", accent: "#ffab6b", light: "#fff0dd", pattern: "rows" },
-  GREEN: { floor: "#e6f0e4", accent: "#7ada6a", light: "#eafbe6", pattern: "rows" },
-  LOCAL: { floor: "#eef0e8", accent: "#ffd166", light: "#fff6e0", pattern: "grid" },
-  MEETING: { floor: "#e8eaf3", accent: "#a88cff", light: "#ece9fb", pattern: "rings" },
-  AI: { floor: "#e6eef6", accent: "#59b8ff", light: "#e6f2ff", pattern: "hex" },
-  ADMIN: { floor: "#ecedef", accent: "#9aa7b6", light: "#f2f4f7", pattern: "grid" },
-};
 
 /** Floor material per room: tinted base + its own drawn pattern. */
 export function useRoomFloor(area: AreaId): THREE.Material {
@@ -299,6 +278,107 @@ function RoomBanner({ area, x, z }: { area: AreaId; x: number; z: number }) {
   return <TwoSidedSign texture={tex} width={6.4} height={2.0} position={[x, 3.6, z]} />;
 }
 
+
+/* ── themed prop kit (module scope: stable component identities) ──── */
+
+/** Desk pod: white slab + screen + chair + accent light line. */
+function Pod({
+  p,
+  r = 0,
+  accent,
+}: {
+  p: [number, number, number];
+  r?: number;
+  accent: THREE.Material;
+}) {
+  return (
+    <group position={p} rotation-y={r}>
+      <mesh material={MAT.resinWhite} position={[0, 0.72, 0]} castShadow receiveShadow>
+        <boxGeometry args={[2.0, 0.07, 0.95]} />
+      </mesh>
+      {[-0.9, 0.9].map((lx) => (
+        <mesh key={lx} material={MAT.matteSilver} position={[lx, 0.36, 0]}>
+          <boxGeometry args={[0.08, 0.72, 0.8]} />
+        </mesh>
+      ))}
+      <mesh material={MAT.screenDark} position={[0, 1.05, -0.32]}>
+        <boxGeometry args={[0.9, 0.55, 0.05]} />
+      </mesh>
+      <mesh material={accent} position={[0, 0.67, 0.5]}>
+        <boxGeometry args={[1.8, 0.03, 0.03]} />
+      </mesh>
+      <OfficeChair position={[0, 0, 0.95]} rotationY={Math.PI} />
+    </group>
+  );
+}
+
+/** Planting bed for the agriculture district. */
+function Bed({ p, accent }: { p: [number, number, number]; accent: THREE.Material }) {
+  return (
+    <group position={p}>
+      <mesh material={MAT.pearl} position={[0, 0.3, 0]} castShadow receiveShadow>
+        <boxGeometry args={[3.2, 0.6, 1.1]} />
+      </mesh>
+      <mesh material={MAT.leaf} position={[0, 0.72, 0]}>
+        <boxGeometry args={[3.0, 0.3, 0.9]} />
+      </mesh>
+      <mesh material={accent} position={[0, 0.62, 0.57]}>
+        <boxGeometry args={[3.0, 0.03, 0.03]} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Standing display totem used by the media-facing districts. */
+function Totem({
+  p,
+  r = 0,
+  accent,
+}: {
+  p: [number, number, number];
+  r?: number;
+  accent: THREE.Material;
+}) {
+  return (
+    <group position={p} rotation-y={r}>
+      <mesh material={MAT.brushed} position={[0, 0.1, 0]}>
+        <cylinderGeometry args={[0.5, 0.6, 0.2, 16]} />
+      </mesh>
+      <mesh material={MAT.screenDark} position={[0, 1.5, 0]} castShadow>
+        <boxGeometry args={[1.4, 2.4, 0.12]} />
+      </mesh>
+      <mesh material={accent} position={[0, 0.28, 0.08]}>
+        <boxGeometry args={[1.2, 0.04, 0.04]} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Round table cluster for hospitality / community districts. */
+function RoundTable({ p }: { p: [number, number, number] }) {
+  return (
+    <group position={p}>
+      <mesh material={MAT.resinWhite} position={[0, 0.74, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.85, 0.85, 0.07, 20]} />
+      </mesh>
+      <mesh material={MAT.matteSilver} position={[0, 0.37, 0]}>
+        <cylinderGeometry args={[0.1, 0.16, 0.74, 12]} />
+      </mesh>
+      {[0, 1, 2, 3].map((i) => {
+        const a = (i / 4) * Math.PI * 2;
+        return (
+          <OfficeChair
+            key={i}
+            position={[Math.cos(a) * 1.35, 0, Math.sin(a) * 1.35]}
+            rotationY={-a + Math.PI / 2}
+            seatMat={MAT.white}
+          />
+        );
+      })}
+    </group>
+  );
+}
+
 /**
  * Themed props filling the enlarged district floor. Positions are
  * fractions of the room bounds, so every room stays populated at any
@@ -324,99 +404,20 @@ function RoomProps({
   ];
 
   /** Desk pod: white slab + screen + accent light line. */
-  const Pod = ({ p, r = 0 }: { p: [number, number, number]; r?: number }) => (
-    <group position={p} rotation-y={r}>
-      <mesh material={MAT.resinWhite} position={[0, 0.72, 0]} castShadow receiveShadow>
-        <boxGeometry args={[2.0, 0.07, 0.95]} />
-      </mesh>
-      {[-0.9, 0.9].map((lx) => (
-        <mesh key={lx} material={MAT.matteSilver} position={[lx, 0.36, 0]}>
-          <boxGeometry args={[0.08, 0.72, 0.8]} />
-        </mesh>
-      ))}
-      <mesh material={MAT.screenDark} position={[0, 1.05, -0.32]}>
-        <boxGeometry args={[0.9, 0.55, 0.05]} />
-      </mesh>
-      <mesh material={accent} position={[0, 0.67, 0.5]}>
-        <boxGeometry args={[1.8, 0.03, 0.03]} />
-      </mesh>
-      <OfficeChair position={[0, 0, 0.95]} rotationY={Math.PI} />
-    </group>
-  );
-
-  /** Planting bed for the agriculture district. */
-  const Bed = ({ p }: { p: [number, number, number] }) => (
-    <group position={p}>
-      <mesh material={MAT.pearl} position={[0, 0.3, 0]} castShadow receiveShadow>
-        <boxGeometry args={[3.2, 0.6, 1.1]} />
-      </mesh>
-      <mesh material={MAT.leaf} position={[0, 0.72, 0]}>
-        <boxGeometry args={[3.0, 0.3, 0.9]} />
-      </mesh>
-      <mesh material={accent} position={[0, 0.62, 0.57]}>
-        <boxGeometry args={[3.0, 0.03, 0.03]} />
-      </mesh>
-    </group>
-  );
-
-  /** Standing display totem used by the media-facing districts. */
-  const Totem = ({ p, r = 0 }: { p: [number, number, number]; r?: number }) => (
-    <group position={p} rotation-y={r}>
-      <mesh material={MAT.brushed} position={[0, 0.1, 0]}>
-        <cylinderGeometry args={[0.5, 0.6, 0.2, 16]} />
-      </mesh>
-      <mesh material={MAT.screenDark} position={[0, 1.5, 0]} castShadow>
-        <boxGeometry args={[1.4, 2.4, 0.12]} />
-      </mesh>
-      <mesh material={accent} position={[0, 0.28, 0.08]}>
-        <boxGeometry args={[1.2, 0.04, 0.04]} />
-      </mesh>
-    </group>
-  );
-
-  /** Round table cluster for hospitality / community rooms. */
-  const RoundTable = ({ p }: { p: [number, number, number] }) => (
-    <group position={p}>
-      <mesh material={MAT.resinWhite} position={[0, 0.74, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.85, 0.85, 0.07, 20]} />
-      </mesh>
-      <mesh material={MAT.matteSilver} position={[0, 0.37, 0]}>
-        <cylinderGeometry args={[0.1, 0.16, 0.74, 12]} />
-      </mesh>
-      {[0, 1, 2, 3].map((i) => {
-        const a = (i / 4) * Math.PI * 2;
-        return (
-          <OfficeChair
-            key={i}
-            position={[Math.cos(a) * 1.35, 0, Math.sin(a) * 1.35]}
-            rotationY={-a + Math.PI / 2}
-            seatMat={MAT.white}
-          />
-        );
-      })}
-    </group>
-  );
-
   switch (area) {
+    // STAFF and MEETING have bespoke district interiors.
     case "STAFF":
-      return (
-        <group>
-          <Pod p={at(0.28, 0.3)} />
-          <Pod p={at(0.68, 0.3)} />
-          <Pod p={at(0.28, 0.58)} />
-          <Pod p={at(0.68, 0.58)} />
-          <RoundTable p={at(0.5, 0.82)} />
-          <Totem p={at(0.9, 0.72)} r={-Math.PI / 2} />
-        </group>
-      );
+      return <StaffDistrict />;
+    case "MEETING":
+      return <MeetingDistrict />;
     case "SIGNAL":
       return (
         <group>
-          <Totem p={at(0.22, 0.24)} />
-          <Totem p={at(0.5, 0.2)} />
-          <Totem p={at(0.78, 0.24)} />
-          <Pod p={at(0.32, 0.6)} />
-          <Pod p={at(0.68, 0.6)} />
+          <Totem p={at(0.22, 0.24)} accent={accent} />
+          <Totem p={at(0.5, 0.2)} accent={accent} />
+          <Totem p={at(0.78, 0.24)} accent={accent} />
+          <Pod p={at(0.32, 0.6)} accent={accent} />
+          <Pod p={at(0.68, 0.6)} accent={accent} />
           <RoundTable p={at(0.5, 0.85)} />
         </group>
       );
@@ -426,8 +427,8 @@ function RoomProps({
           <RoundTable p={at(0.3, 0.32)} />
           <RoundTable p={at(0.7, 0.32)} />
           <RoundTable p={at(0.5, 0.66)} />
-          <Totem p={at(0.12, 0.5)} r={Math.PI / 2} />
-          <Totem p={at(0.88, 0.5)} r={-Math.PI / 2} />
+          <Totem p={at(0.12, 0.5)} r={Math.PI / 2} accent={accent} />
+          <Totem p={at(0.88, 0.5)} r={-Math.PI / 2} accent={accent} />
         </group>
       );
     case "TABLE":
@@ -437,47 +438,47 @@ function RoomProps({
           <RoundTable p={at(0.62, 0.28)} />
           <RoundTable p={at(0.34, 0.66)} />
           <RoundTable p={at(0.72, 0.68)} />
-          <Pod p={at(0.5, 0.9)} />
+          <Pod p={at(0.5, 0.9)} accent={accent} />
         </group>
       );
     case "GREEN":
       return (
         <group>
-          <Bed p={at(0.3, 0.28)} />
-          <Bed p={at(0.7, 0.28)} />
-          <Bed p={at(0.3, 0.52)} />
-          <Bed p={at(0.7, 0.52)} />
-          <Bed p={at(0.5, 0.78)} />
+          <Bed p={at(0.3, 0.28)} accent={accent} />
+          <Bed p={at(0.7, 0.28)} accent={accent} />
+          <Bed p={at(0.3, 0.52)} accent={accent} />
+          <Bed p={at(0.7, 0.52)} accent={accent} />
+          <Bed p={at(0.5, 0.78)} accent={accent} />
         </group>
       );
     case "LOCAL":
       return (
         <group>
           <RoundTable p={at(0.32, 0.34)} />
-          <Pod p={at(0.7, 0.32)} />
-          <Totem p={at(0.5, 0.14)} />
+          <Pod p={at(0.7, 0.32)} accent={accent} />
+          <Totem p={at(0.5, 0.14)} accent={accent} />
           <RoundTable p={at(0.6, 0.72)} />
-          <Pod p={at(0.24, 0.68)} />
+          <Pod p={at(0.24, 0.68)} accent={accent} />
         </group>
       );
     case "AI":
       return (
         <group>
-          <Totem p={at(0.24, 0.22)} />
-          <Totem p={at(0.76, 0.22)} />
-          <Pod p={at(0.3, 0.56)} />
-          <Pod p={at(0.7, 0.56)} />
-          <Pod p={at(0.5, 0.84)} />
+          <Totem p={at(0.24, 0.22)} accent={accent} />
+          <Totem p={at(0.76, 0.22)} accent={accent} />
+          <Pod p={at(0.3, 0.56)} accent={accent} />
+          <Pod p={at(0.7, 0.56)} accent={accent} />
+          <Pod p={at(0.5, 0.84)} accent={accent} />
         </group>
       );
     case "ADMIN":
       return (
         <group>
-          <Pod p={at(0.3, 0.28)} />
-          <Pod p={at(0.7, 0.28)} />
-          <Pod p={at(0.3, 0.62)} />
-          <Pod p={at(0.7, 0.62)} />
-          <Totem p={at(0.5, 0.12)} />
+          <Pod p={at(0.3, 0.28)} accent={accent} />
+          <Pod p={at(0.7, 0.28)} accent={accent} />
+          <Pod p={at(0.3, 0.62)} accent={accent} />
+          <Pod p={at(0.7, 0.62)} accent={accent} />
+          <Totem p={at(0.5, 0.12)} accent={accent} />
         </group>
       );
     default:
@@ -500,25 +501,27 @@ export function RoomIdentity({
   sim: LabSim;
 }) {
   const theme = ROOM_THEMES[area];
-  // Distance gate: a district's furnishing only draws while the player
-  // is in or near it. Ten fully dressed rooms at once cost draw calls
-  // nobody can see — this keeps the far side of the hall cheap, which
-  // matters most on mobile.
+  // Detail streaming (§25). HIGH: the district you are in — full
+  // furnishing. MEDIUM: neighbours across the spine — furnishing still
+  // draws so the world reads continuous. LOW: the far side of the
+  // campus — only the landmark, banner and massing silhouette, so a
+  // big world stays affordable (mobile especially).
   const props = useRef<THREE.Group>(null);
-  const near = useRef(true);
+  const massing = useRef<THREE.Group>(null);
+  const tier = useRef<"high" | "medium" | "low">("low");
   useFrame(() => {
-    const g = props.current;
-    if (!g) return;
     const cx0 = bounds.x + bounds.w / 2;
     const cy0 = bounds.y + bounds.h / 2;
     const dx = sim.avatar.x - cx0;
     const dy = sim.avatar.y - cy0;
-    const reach = Math.max(bounds.w, bounds.h) * 0.5 + 520;
-    const visible = dx * dx + dy * dy < reach * reach;
-    if (visible !== near.current) {
-      near.current = visible;
-      g.visible = visible;
-    }
+    const dist = Math.hypot(dx, dy);
+    const span = Math.max(bounds.w, bounds.h) * 0.5;
+    const next: "high" | "medium" | "low" =
+      dist < span + 120 ? "high" : dist < span + 760 ? "medium" : "low";
+    if (next === tier.current) return;
+    tier.current = next;
+    if (props.current) props.current.visible = next !== "low";
+    if (massing.current) massing.current.visible = next === "low";
   });
   const rail = useMemo(
     () => new THREE.MeshBasicMaterial({ color: theme.accent, toneMapped: false }),
@@ -531,9 +534,32 @@ export function RoomIdentity({
   return (
     <group>
       <RoomBanner area={area} x={cx} z={u(bounds.y) + 0.35} />
-      <group ref={props}>
+      {/* landmark stays resident at every tier — it is how you spot a
+          district from across the campus. Districts with a bespoke
+          landmark (collaboration island, meeting pavilion, data core)
+          skip the generic emblem so the space keeps one hero. */}
+      {area === "STAFF" || area === "MEETING" || area === "ENTRANCE" ? null : (
         <RoomEmblem area={area} x={cx} z={cz} y={4.6} />
+      )}
+      <group ref={props} visible={false}>
         <RoomProps area={area} bounds={bounds} />
+      </group>
+      <group ref={massing}>
+        {/* far-tier silhouette: a few soft volumes that keep the room
+            from reading as an empty box at distance */}
+        {[
+          [0.3, 0.32, 3.2, 1.4],
+          [0.7, 0.32, 3.2, 1.4],
+          [0.5, 0.68, 4.2, 1.6],
+        ].map(([fx, fy, sw, sd], i) => (
+          <mesh
+            key={i}
+            material={MAT.floorMassing}
+            position={[u(bounds.x + bounds.w * fx), 0.45, u(bounds.y + bounds.h * fy)]}
+          >
+            <boxGeometry args={[sw, 0.9, sd]} />
+          </mesh>
+        ))}
       </group>
       {/* perimeter light rail just above the baseboard */}
       {[
