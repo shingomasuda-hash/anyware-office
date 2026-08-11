@@ -1,7 +1,42 @@
 "use client";
 
 import type { AreaId } from "@/types/office";
+import type { SectionKey } from "@/types/database";
 import { AREA_BY_ID } from "@/lib/game/map";
+import { useOfficeDataContext } from "@/hooks/useOfficeData";
+
+/** Areas that ARE a business division (business_sections.section_key). */
+const AREA_SECTION: Partial<Record<AreaId, SectionKey>> = {
+  SIGNAL: "SIGNAL",
+  PARTNER: "PARTNER",
+  TABLE: "TABLE",
+  GREEN: "GREEN",
+  LOCAL: "LOCAL",
+};
+
+/**
+ * Live division identity for the room you are standing in — the real
+ * business_sections row, not a hard-coded label, so the world always
+ * names the division the way the admin console does.
+ */
+function DivisionLine({ area }: { area: AreaId }) {
+  const state = useOfficeDataContext();
+  const key = AREA_SECTION[area];
+  if (!key || state.status !== "ready") return null;
+  const section = state.data.sections.find((s) => s.section_key === key);
+  if (!section) return null;
+  return (
+    <p
+      data-testid="hud-division"
+      className="mt-1 max-w-[18rem] truncate border-t border-cyan-200/15 pt-1 text-[10px] font-medium text-cyan-100/85 md:max-w-[26rem]"
+    >
+      <span className="font-semibold">{section.title}</span>
+      {section.tagline ? (
+        <span className="text-slate-400"> · {section.tagline}</span>
+      ) : null}
+    </p>
+  );
+}
 
 export default function OfficeHUD({
   area,
@@ -54,6 +89,7 @@ export default function OfficeHUD({
         >
           {subtitle}
         </p>
+        {lab && area ? <DivisionLine area={area} /> : null}
       </div>
     </div>
   );

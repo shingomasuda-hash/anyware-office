@@ -12,7 +12,8 @@ import type { Direction } from "@/types/office";
 import type { LabSim } from "./LabSim";
 import AvatarMesh, { type AvatarSample } from "./avatars/AvatarMesh";
 import { World } from "./world/World";
-import { worldTo3D } from "./world/scale";
+import { WORLD_UNIT_TO_METERS, worldTo3D } from "./world/scale";
+import { WALLS } from "@/lib/game/map";
 
 const SKY = "#e9e4f5";
 
@@ -38,6 +39,64 @@ const DIR_VEC: Record<Direction, [number, number]> = {
   left: [-1, 0],
   right: [1, 0],
 };
+
+const MIN_BOOM = 1.7; // metres — closest the camera may tuck in
+const CAM_PAD = 0.42; // metres of clearance kept from any wall face
+
+/**
+ * Longest boom length (metres) from the avatar along (ox,oz) that keeps
+ * the camera clear of every wall. Marching in world units against the
+ * same WALLS rects the collision layer uses, so the camera obeys the
+ * exact architecture the player sees.
+ */
+function cameraBoom(
+  ax: number,
+  ay: number,
+  ox: number,
+  oz: number,
+  maxDist: number,
+): number {
+  const padU = CAM_PAD / WORLD_UNIT_TO_METERS;
+  let best = maxDist;
+  for (const r of WALLS) {
+    // expand the wall by the pad, then ray-march the segment
+    const minX = r.x - padU;
+    const maxX = r.x + r.w + padU;
+    const minY = r.y - padU;
+    const maxY = r.y + r.h + padU;
+    if (ax >= minX && ax <= maxX && ay >= minY && ay <= maxY) continue;
+    // direction in world units per metre of boom
+    const dx = (ox * 1) / WORLD_UNIT_TO_METERS;
+    const dy = (oz * 1) / WORLD_UNIT_TO_METERS;
+    let t0 = 0;
+    let t1 = maxDist;
+    let ok = true;
+    if (Math.abs(dx) < 1e-6) {
+      if (ax < minX || ax > maxX) ok = false;
+    } else {
+      let tA = (minX - ax) / dx;
+      let tB = (maxX - ax) / dx;
+      if (tA > tB) [tA, tB] = [tB, tA];
+      t0 = Math.max(t0, tA);
+      t1 = Math.min(t1, tB);
+      if (t0 > t1) ok = false;
+    }
+    if (ok) {
+      if (Math.abs(dy) < 1e-6) {
+        if (ay < minY || ay > maxY) ok = false;
+      } else {
+        let tA = (minY - ay) / dy;
+        let tB = (maxY - ay) / dy;
+        if (tA > tB) [tA, tB] = [tB, tA];
+        t0 = Math.max(t0, tA);
+        t1 = Math.min(t1, tB);
+        if (t0 > t1) ok = false;
+      }
+    }
+    if (ok && t0 < best) best = t0;
+  }
+  return Math.max(MIN_BOOM, best);
+}
 
 /**
  * Chase camera: swings smoothly to sit BEHIND the walking direction,
@@ -69,15 +128,29 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
     camYaw.current += dy * (first.current ? 1 : 1 - Math.exp(-3.2 * dt));
     const ox = Math.sin(camYaw.current);
     const oz = Math.cos(camYaw.current);
+    // Spring arm: shorten the boom so the camera never passes through a
+    // wall. Standing in a room and turning around used to push the
+    // camera outside, which made the whole wall vanish; now the camera
+    // simply pulls in and the room stays intact.
+    const dist = cameraBoom(sim.avatar.x, sim.avatar.y, ox, oz, camDist);
     const [x, , z] = worldTo3D(sim.avatar.x, sim.avatar.y);
-    vDesired.set(x + ox * camDist, camY, z + oz * camDist);
+    // When the boom is compressed by a wall the camera RISES and looks
+    // further down, so being cornered turns into a clean look into the
+    // room instead of a close-up of the wall behind you.
+    const t = Math.max(0, Math.min(1, (dist - MIN_BOOM) / Math.max(0.001, camDist - MIN_BOOM)));
+    vDesired.set(x + ox * dist, camY + (1 - t) * 1.55, z + oz * dist);
     if (first.current) {
       camera.position.copy(vDesired);
       first.current = false;
     } else {
-      camera.position.lerp(vDesired, 1 - Math.exp(-4.5 * dt));
+      // Pulling in must be quick (a wall is in the way); easing back
+      // out stays smooth so the camera doesn't snap when space opens.
+      const curDist = Math.hypot(camera.position.x - x, camera.position.z - z);
+      const rate = dist < curDist ? 18 : 4.5;
+      camera.position.lerp(vDesired, 1 - Math.exp(-rate * dt));
     }
-    vLook.set(x - ox * lookAhead, 1.05, z - oz * lookAhead);
+    // look further down as the boom compresses
+    vLook.set(x - ox * lookAhead * t, 1.05 - (1 - t) * 0.75, z - oz * lookAhead * t);
     camera.lookAt(vLook);
   });
   return null;
