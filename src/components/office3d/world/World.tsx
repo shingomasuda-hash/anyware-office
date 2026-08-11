@@ -30,18 +30,20 @@ import {
   WhiteBoard,
 } from "./Furniture";
 import { MAT, makeTextTexture } from "./materials";
-import { rectTo3D, u, WALL_HEIGHT_M } from "./scale";
+import { rectTo3D, rectToFurniture, u, WALL_HEIGHT_M, WORLD_SCALE_RATIO } from "./scale";
 import { cameraWorldUnits, OcclusionSet, useViewOcclusion } from "./occlusion";
 import {
   FloatingOrbs,
   MetaCity,
   Nature,
   SkyDome,
+  TwoSidedSign,
   Vehicles,
   writeInstances,
   type InstanceSpec,
 } from "./effects";
 import { AreaGateways } from "./gateways";
+import { RoomIdentity, ROOM_THEMES, useRoomFloor } from "./rooms";
 import {
   ArrivalPlatform,
   CurvedCorners,
@@ -63,10 +65,7 @@ import {
 
 const DETAILED: ReadonlySet<AreaId> = new Set(["ENTRANCE", "STAFF", "MEETING"]);
 
-const FLOOR_MAT: Partial<Record<AreaId, THREE.Material>> = {
-  STAFF: MAT.floorWood,
-  MEETING: MAT.floorCarpet,
-};
+
 
 type WallKind = "outer" | "meetingGlass" | "solid";
 
@@ -161,8 +160,10 @@ function buildWalls() {
     const len = horizontal ? w : d;
     const slabs: WallBuild["slabs"] = [];
     if (kind === "outer") {
-      const sill = 0.9;
-      const top = 2.35;
+      // proportioned for the hall's 5.4 m walls: waist-high sill, then
+      // a tall glass band up to a slim solid header
+      const sill = 1.5;
+      const top = 4.55;
       slabs.push({ mat: MAT.wallWarm, y: sill / 2, sx: w, sy: sill, sz: d });
       slabs.push({
         mat: MAT.glass,
@@ -178,7 +179,7 @@ function buildWalls() {
           sx: horizontal ? w : w * 0.6, sy: 0.06, sz: horizontal ? d * 0.6 : d,
         });
       }
-      const mull = Math.max(1, Math.round(len / 4.8));
+      const mull = Math.max(1, Math.round(len / 9.5));
       for (let i = 0; i <= mull; i++) {
         const t = -len / 2 + (i * len) / mull;
         silver.push({
@@ -199,13 +200,13 @@ function buildWalls() {
         sy: H,
         sz: horizontal ? d * 0.3 : d,
       });
-      for (const fy of [0.04, 1.0, H - 0.04]) {
+      for (const fy of [0.05, 2.0, H - 0.05]) {
         silver.push({
           wall: wi, x: cx, y: fy, z: cz,
           sx: horizontal ? w : w * 0.5, sy: 0.05, sz: horizontal ? d * 0.5 : d,
         });
       }
-      const posts = Math.max(1, Math.round(len / 1.8));
+      const posts = Math.max(1, Math.round(len / 3.8));
       for (let i = 0; i <= posts; i++) {
         const t = -len / 2 + (i * len) / posts;
         silver.push({
@@ -224,8 +225,8 @@ function buildWalls() {
       });
     } else {
       slabs.push({ mat: MAT.wallPaint, y: H / 2, sx: w, sy: H, sz: d });
-      silver.push({ wall: wi, x: cx, y: 0.06, z: cz, sx: w + 0.01, sy: 0.12, sz: d + 0.01 });
-      neon.push({ wall: wi, x: cx, y: 0.16, z: cz, sx: w + 0.02, sy: 0.012, sz: d + 0.02 });
+      silver.push({ wall: wi, x: cx, y: 0.11, z: cz, sx: w + 0.02, sy: 0.22, sz: d + 0.02 });
+      neon.push({ wall: wi, x: cx, y: 0.3, z: cz, sx: w + 0.03, sy: 0.02, sz: d + 0.03 });
     }
     classified.push({ r, kind, horizontal, slabs });
   });
@@ -299,6 +300,23 @@ function Walls({ sim }: { sim: LabSim }) {
   );
 }
 
+/** One themed floor plane per area (ENTRANCE keeps its plaza art). */
+function AreaFloor({ area, plaza }: { area: AreaId; plaza: THREE.Material }) {
+  const themed = useRoomFloor(area);
+  const a = AREA_BY_ID[area];
+  const { cx, cz, w, d } = rectTo3D(a.bounds);
+  return (
+    <mesh
+      material={area === "ENTRANCE" ? plaza : themed}
+      rotation-x={-Math.PI / 2}
+      position={[cx, 0.012, cz]}
+      receiveShadow
+    >
+      <planeGeometry args={[w, d]} />
+    </mesh>
+  );
+}
+
 function Floors() {
   const plaza = usePlazaMaterial();
   return (
@@ -307,15 +325,9 @@ function Floors() {
       <mesh material={MAT.floorCorridor} rotation-x={-Math.PI / 2} position={[u(WORLD.w) / 2, 0, u(WORLD.h) / 2]} receiveShadow>
         <planeGeometry args={[u(WORLD.w), u(WORLD.h)]} />
       </mesh>
-      {AREAS.map((a) => {
-        const { cx, cz, w, d } = rectTo3D(a.bounds);
-        const mat = a.id === "ENTRANCE" ? plaza : FLOOR_MAT[a.id] ?? MAT.floorMassing;
-        return (
-          <mesh key={a.id} material={mat} rotation-x={-Math.PI / 2} position={[cx, 0.012, cz]} receiveShadow>
-            <planeGeometry args={[w, d]} />
-          </mesh>
-        );
-      })}
+      {AREAS.map((a) => (
+        <AreaFloor key={a.id} area={a.id} plaza={plaza} />
+      ))}
       {/* doorway thresholds keep their 2D accent colors — rendered
           unlit so they read as luminous guide strips, not paint */}
       {DOORWAYS.map((dw, i) => {
@@ -329,10 +341,10 @@ function Floors() {
       })}
       {/* digital circulation lines running the main corridor */}
       <mesh material={MAT.holo} rotation-x={-Math.PI / 2} position={[u(WORLD.w) / 2, 0.024, u(560)]}>
-        <planeGeometry args={[u(WORLD.w) - 2, 0.09]} />
+        <planeGeometry args={[u(WORLD.w) - 6, 0.27]} />
       </mesh>
       <mesh material={MAT.holoPurple} rotation-x={-Math.PI / 2} position={[u(WORLD.w) / 2, 0.024, u(640)]}>
-        <planeGeometry args={[u(WORLD.w) - 2, 0.05]} />
+        <planeGeometry args={[u(WORLD.w) - 6, 0.15]} />
       </mesh>
       {[500, 590, 680].map((yy, i) => (
         <mesh
@@ -341,7 +353,7 @@ function Floors() {
           rotation-x={-Math.PI / 2}
           position={[u(240 + i * 380), 0.024, u(yy)]}
         >
-          <planeGeometry args={[0.05, 2.4]} />
+          <planeGeometry args={[0.15, 7.2]} />
         </mesh>
       ))}
     </group>
@@ -366,7 +378,7 @@ function MassingFurniture() {
   return (
     <group>
       {massing.map((f, i) => {
-        const { cx, cz, w, d } = rectTo3D(f.rect);
+        const { cx, cz, w, d } = rectToFurniture(f.rect);
         const h = f.kind === "rack" ? 1.6 : f.kind === "plant" ? 1.1 : 0.75;
         return f.kind === "plant" ? (
           <PlantTall key={i} position={[cx, 0, cz]} scale={0.9} />
@@ -411,15 +423,15 @@ function AreaSign({
   const group = useViewOcclusion(sim, position[0] / 0.025, position[2] / 0.025);
   return (
     <group ref={group}>
-      <TextPanel position={position} width={2.4} height={0.75} texture={tex} glow />
+      <TextPanel position={position} width={4.6} height={1.44} texture={tex} glow />
       {posts
-        ? [-1.05, 1.05].map((px) => (
+        ? [-2.0, 2.0].map((px) => (
             <mesh
               key={px}
               material={MAT.windowFrame}
-              position={[position[0] + px, position[1] / 2 - 0.19, position[2]]}
+              position={[position[0] + px, position[1] / 2 - 0.36, position[2]]}
             >
-              <boxGeometry args={[0.04, position[1] - 0.38, 0.04]} />
+              <boxGeometry args={[0.08, position[1] - 0.72, 0.08]} />
             </mesh>
           ))
         : null}
@@ -463,22 +475,15 @@ function RooftopBillboard({
       ),
     [area, bg, bgTo, fg],
   );
-  const mat = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, side: THREE.DoubleSide }),
-    [tex],
-  );
   return (
     <group ref={group}>
-      <group position={[u(cxUnits), 3.45, u(cyUnits)]}>
-        <mesh material={mat}>
-          <planeGeometry args={[2.6, 0.98]} />
+      <group position={[u(cxUnits), 7.4, u(cyUnits)]}>
+        <TwoSidedSign texture={tex} width={6.2} height={2.34} />
+        <mesh material={MAT.neonCyan} position={[0, -1.32, 0]}>
+          <boxGeometry args={[6.2, 0.05, 0.05]} />
         </mesh>
-        <mesh material={MAT.neonCyan} position={[0, -0.56, 0]}>
-          <boxGeometry args={[2.6, 0.02, 0.02]} />
-        </mesh>
-        <mesh material={MAT.brushed} position={[0, -1.0, 0]}>
-          <boxGeometry args={[0.05, 0.85, 0.05]} />
+        <mesh material={MAT.brushed} position={[0, -2.3, 0]}>
+          <boxGeometry args={[0.12, 2.0, 0.12]} />
         </mesh>
       </group>
     </group>
@@ -500,7 +505,7 @@ function RooftopBillboards({ sim }: { sim: LabSim }) {
 function EntranceArea({ sim }: { sim: LabSim }) {
   const b = AREA_BY_ID.ENTRANCE.bounds; // 680,800 400x384
   const counter = FURNITURE.find((f) => f.kind === "counter")!;
-  const c = rectTo3D(counter.rect);
+  const c = rectToFurniture(counter.rect);
   const brandTex = useMemo(
     () =>
       makeTextTexture(
@@ -536,10 +541,10 @@ function EntranceArea({ sim }: { sim: LabSim }) {
       <Reception cx={c.cx} cz={c.cz} w={c.w} d={c.d} />
       {/* digital brand wall on the west face */}
       <TextPanel
-        position={[u(b.x) + 0.55, 1.5, u(990)]}
+        position={[u(b.x) + 0.8, 2.6, u(990)]}
         rotationY={Math.PI / 2}
-        width={4.4}
-        height={2.1}
+        width={9.0}
+        height={4.3}
         texture={brandTex}
         glow
       />
@@ -557,7 +562,7 @@ function EntranceArea({ sim }: { sim: LabSim }) {
       {FURNITURE.filter(
         (f) => f.kind === "plant" && f.rect.y > 900 && f.rect.x > 1000,
       ).map((f, i) => {
-        const p = rectTo3D(f.rect);
+        const p = rectToFurniture(f.rect);
         return <PlantTall key={i} position={[p.cx, 0, p.cz]} />;
       })}
       <PlantSmall position={[c.cx - c.w / 2 - 0.5, 0, c.cz + 0.2]} />
@@ -573,16 +578,16 @@ function StaffArea({ sim }: { sim: LabSim }) {
   return (
     <group>
       {desks.map((f, i) => {
-        const p = rectTo3D(f.rect);
+        const p = rectToFurniture(f.rect);
         return (
           <group key={i}>
             <DeskBank cx={p.cx} cz={p.cz} w={p.w} d={p.d} chairSide={i === 0 ? 1 : -1} />
             {/* holo project board hovering over the bank */}
-            <mesh material={MAT.holo} position={[p.cx, 1.95, p.cz]}>
-              <planeGeometry args={[p.w * 0.7, 0.5]} />
+            <mesh material={MAT.holo} position={[p.cx, 2.5, p.cz]}>
+              <planeGeometry args={[p.w * 1.1, 0.8]} />
             </mesh>
-            <mesh material={MAT.neonCyan} position={[p.cx, 2.22, p.cz]}>
-              <boxGeometry args={[p.w * 0.7, 0.015, 0.015]} />
+            <mesh material={MAT.neonCyan} position={[p.cx, 2.94, p.cz]}>
+              <boxGeometry args={[p.w * 1.1, 0.02, 0.02]} />
             </mesh>
           </group>
         );
@@ -595,14 +600,14 @@ function StaffArea({ sim }: { sim: LabSim }) {
       <CoffeeTable position={[u(120), 0, u(322)]} />
       <PlantTall position={[u(330), 0, u(365)]} />
       {FURNITURE.filter((f) => f.kind === "plant" && f.rect.x === 312).map((f, i) => {
-        const p = rectTo3D(f.rect);
+        const p = rectToFurniture(f.rect);
         return <PlantTall key={i} position={[p.cx, 0, p.cz]} scale={0.9} />;
       })}
       <PlantSmall position={[u(40), 0, u(380)]} />
       <Rug position={[u(255), 0.02, u(210)]} radius={1.2} />
       <WhiteBoard position={[u(346) - 0.35, 0, u(150)]} rotationY={-Math.PI / 2} />
       <PlantSmall position={[u(330), 0, u(60)]} />
-      <AreaSign area="STAFF" position={[u(189), 2.25, u(416) + 0.09]} sim={sim} />
+      <AreaSign area="STAFF" position={[u(189), 4.2, u(416) + 0.2]} sim={sim} />
     </group>
   );
 }
@@ -613,7 +618,7 @@ function MeetingArea({ sim }: { sim: LabSim }) {
   const chairs = useMemo(
     () =>
       tables.flatMap((f) => {
-        const p = rectTo3D(f.rect);
+        const p = rectToFurniture(f.rect);
         return meetingChairSpecs(p.cx, p.cz, p.w, p.d);
       }),
     [tables],
@@ -638,7 +643,7 @@ function MeetingArea({ sim }: { sim: LabSim }) {
     <group>
       <ChairField chairs={chairs} />
       {tables.map((f, i) => {
-        const p = rectTo3D(f.rect);
+        const p = rectToFurniture(f.rect);
         return (
           <group key={i}>
             <MeetingTable cx={p.cx} cz={p.cz} w={p.w} d={p.d} />
@@ -649,29 +654,29 @@ function MeetingArea({ sim }: { sim: LabSim }) {
             <mesh
               material={MAT.holoPurple}
               rotation-x={Math.PI / 2}
-              position={[p.cx, 2.45, p.cz]}
+              position={[p.cx, 3.1, p.cz]}
             >
-              <torusGeometry args={[Math.min(p.w, p.d) * 0.42, 0.03, 8, 36]} />
+              <torusGeometry args={[Math.min(p.w, p.d) * 0.55, 0.05, 8, 36]} />
             </mesh>
           </group>
         );
       })}
       {/* large display on the solid north wall — a glowing digital
           presence wall rather than a mounted TV */}
-      <group position={[u(b.x + b.w / 2), 1.55, u(b.y) + 0.45]}>
-        <mesh material={MAT.matteSilver} position={[0, 0, -0.03]} castShadow>
-          <boxGeometry args={[3.56, 2.0, 0.06]} />
+      <group position={[u(b.x + b.w / 2), 2.9, u(b.y) + 0.7]}>
+        <mesh material={MAT.matteSilver} position={[0, 0, -0.05]} castShadow>
+          <boxGeometry args={[7.2, 4.05, 0.1]} />
         </mesh>
         <mesh material={screenMat}>
-          <planeGeometry args={[3.3, 1.78]} />
+          <planeGeometry args={[6.9, 3.7]} />
         </mesh>
-        <mesh material={MAT.neonCyan} position={[0, -1.03, 0.01]}>
-          <boxGeometry args={[3.56, 0.02, 0.02]} />
+        <mesh material={MAT.neonCyan} position={[0, -2.1, 0.02]}>
+          <boxGeometry args={[7.2, 0.04, 0.04]} />
         </mesh>
       </group>
       <PlantTall position={[u(b.x) + 0.7, 0, u(b.y) + 0.8]} />
       <PlantTall position={[u(b.x + b.w) - 0.7, 0, u(b.y + b.h) - 0.9]} scale={0.9} />
-      <AreaSign area="MEETING" position={[u(1227), 2.25, u(416) + 0.09]} sim={sim} />
+      <AreaSign area="MEETING" position={[u(1227), 4.2, u(416) + 0.2]} sim={sim} />
     </group>
   );
 }
@@ -679,14 +684,23 @@ function MeetingArea({ sim }: { sim: LabSim }) {
 function WorldImpl({ sim }: { sim: LabSim }) {
   return (
     <group>
-      <SkyDome />
-      <MetaCity />
-      <Nature />
-      <FloatingOrbs />
-      <Vehicles />
+      {/* Backdrop authored against the original office scale; one group
+          scale keeps sky, city, greenery and traffic in register with
+          the enlarged hall. */}
+      <group scale={WORLD_SCALE_RATIO}>
+        <SkyDome />
+        <MetaCity />
+        <Nature />
+        <FloatingOrbs />
+        <Vehicles />
+      </group>
       <Floors />
       <Walls sim={sim} />
       <MassingFurniture />
+      {/* district character: emblem, banner and accent rail per room */}
+      {AREAS.filter((a) => a.id !== "ENTRANCE").map((a) => (
+        <RoomIdentity key={a.id} area={a.id} bounds={a.bounds} />
+      ))}
       <AreaGateways sim={sim} />
       <RooftopBillboards sim={sim} />
       <EntranceArea sim={sim} />

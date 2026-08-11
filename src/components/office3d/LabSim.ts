@@ -13,8 +13,14 @@ import type { AreaId, AvatarState, Direction } from "@/types/office";
 // The public surface mirrors OfficeGame so the STEP 3/4 hooks
 // (useOfficeRealtime, MiniMap, MobileJoystick) work unchanged.
 
-const SPEED = 260; // world units / second — identical to the 2D engine
+// The 3D hall renders each map unit 3x larger than the 2D office, so
+// the same unit speed would read as a 20 m/s sprint. Walking pace is
+// tuned in METRES here; positions stay in world units, so realtime
+// stays compatible with 2D clients.
+const SPEED = 150; // world units / second (~11 m/s in the enlarged hall)
 const MAX_DT = 0.05;
+/** see updateArea() note — tighter than the shared 2D box. */
+const LAB_AVATAR_SIZE = Math.round(AVATAR_SIZE * 0.55);
 const JOYSTICK_DEADZONE = 0.12;
 
 // Screen→world input rotation: the chase camera sits behind the
@@ -226,7 +232,7 @@ export class LabSim {
       this.avatar,
       v.x * SPEED * dt,
       v.y * SPEED * dt,
-      AVATAR_SIZE,
+      LAB_AVATAR_SIZE,
       SOLIDS,
     );
     this.avatar.x = next.x;
@@ -234,6 +240,12 @@ export class LabSim {
     this.updateArea();
   }
 
+  /**
+   * Collision radius for the lab. The shared AVATAR_SIZE is authored
+   * for the 1:1 office; at the hall's larger render scale that box
+   * would read as a 2 m bubble around a 1.7 m person, so the lab uses
+   * a tighter box that matches the body you actually see.
+   */
   private updateArea() {
     const area = findAreaAt(this.avatar);
     if (area !== this.currentArea) {

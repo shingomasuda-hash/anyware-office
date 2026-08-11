@@ -102,6 +102,48 @@ export function StaticBoxes({
   );
 }
 
+/**
+ * A sign readable from BOTH sides. A single double-sided plane shows
+ * the texture mirrored when viewed from behind, which made area signs
+ * read backwards; two front-facing planes back to back fix that.
+ */
+export function TwoSidedSign({
+  texture,
+  width,
+  height,
+  transparent = false,
+  position = [0, 0, 0],
+  rotationY = 0,
+}: {
+  texture: THREE.Texture;
+  width: number;
+  height: number;
+  transparent?: boolean;
+  position?: [number, number, number];
+  rotationY?: number;
+}) {
+  const mat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        map: texture,
+        toneMapped: false,
+        transparent,
+        side: THREE.FrontSide,
+      }),
+    [texture, transparent],
+  );
+  return (
+    <group position={position} rotation-y={rotationY}>
+      <mesh material={mat} position={[0, 0, 0.006]}>
+        <planeGeometry args={[width, height]} />
+      </mesh>
+      <mesh material={mat} position={[0, 0, -0.006]} rotation-y={Math.PI}>
+        <planeGeometry args={[width, height]} />
+      </mesh>
+    </group>
+  );
+}
+
 /* ── metaverse district skyline ────────────────────────────────────── */
 function towerTexture(base: string, win1: string, win2: string) {
   const canvas = document.createElement("canvas");
@@ -143,10 +185,7 @@ export function MetaCity() {
       ),
     [],
   );
-  const adMat = useMemo(
-    () => new THREE.MeshBasicMaterial({ map: adTex, toneMapped: false, side: THREE.DoubleSide }),
-    [adTex],
-  );
+
   const { groups, crowns, bridges } = useMemo(() => {
     const spots = [
       { x: -14, z: -12 }, { x: 0, z: -16 }, { x: 14, z: -14 }, { x: 30, z: -17 },
@@ -212,9 +251,7 @@ export function MetaCity() {
       />
       {/* giant district billboard facing the campus */}
       <group position={[0, 12.4, -15.8]} rotation-y={0.25}>
-        <mesh material={adMat}>
-          <planeGeometry args={[7.2, 3.6]} />
-        </mesh>
+        <TwoSidedSign texture={adTex} width={7.2} height={3.6} />
         <mesh material={MAT.neonMagenta} position={[0, -1.86, 0.02]}>
           <boxGeometry args={[7.2, 0.05, 0.05]} />
         </mesh>

@@ -8,6 +8,7 @@ import type { LabSim } from "../LabSim";
 import { AREA_BY_ID } from "@/lib/game/map";
 import type { AreaId } from "@/types/office";
 import { MAT, makeTextTexture } from "./materials";
+import { TwoSidedSign } from "./effects";
 import { cameraWorldUnits, segmentHitsRect } from "./occlusion";
 import { u } from "./scale";
 
@@ -17,6 +18,30 @@ import { u } from "./scale";
 // feel; cyan is reserved for information, connection and guidance.
 // Arrival axis: spawn (880,1100) → light lane → DATA CORE (west of
 // the axis) → RING GATE (880,806) → district.
+
+/** Fine terrazzo grain, tiled across the plaza for close-up detail. */
+function grainCanvas(): HTMLCanvasElement {
+  const N = 256;
+  const c = document.createElement("canvas");
+  c.width = N;
+  c.height = N;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#cfd6de";
+  ctx.fillRect(0, 0, N, N);
+  let seed = 7;
+  const rand = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 0xffffffff;
+  };
+  for (let i = 0; i < 900; i++) {
+    const g = 190 + Math.floor(rand() * 60);
+    ctx.fillStyle = `rgb(${g},${g},${g})`;
+    ctx.beginPath();
+    ctx.arc(rand() * N, rand() * N, 0.7 + rand() * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return c;
+}
 
 /* ── plaza floor: pearl terrazzo with embedded guidance ───────────── */
 export function usePlazaMaterial(): THREE.Material {
@@ -117,7 +142,20 @@ export function usePlazaMaterial(): THREE.Material {
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 8;
-    return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.34, metalness: 0.08 });
+    // The plaza art is authored for the room's footprint; a detail
+    // layer tiled on top keeps the terrazzo grain crisp now that the
+    // floor is three times larger.
+    const grain = new THREE.CanvasTexture(grainCanvas());
+    grain.colorSpace = THREE.SRGBColorSpace;
+    grain.wrapS = grain.wrapT = THREE.RepeatWrapping;
+    grain.repeat.set(14, 14);
+    grain.anisotropy = 8;
+    return new THREE.MeshStandardMaterial({
+      map: tex,
+      roughnessMap: grain,
+      roughness: 0.42,
+      metalness: 0.06,
+    });
   }, []);
 }
 
@@ -131,18 +169,20 @@ export function FloatingCeiling() {
     const g = group.current;
     if (!g) return;
     // millimetre-scale kinetic drift (§6) — visible as life, not motion
-    g.position.y = Math.sin(performance.now() / 3600) * 0.02;
+    g.position.y = Math.sin(performance.now() / 3600) * 0.05;
   });
+  // Positions in map units so the canopy tracks the hall at any world
+  // scale; heights and panel sizes are metres.
   const panels: Array<{
     p: [number, number, number];
     s: [number, number];
     m: THREE.Material;
   }> = [
-    { p: [20.3, 4.05, 24.0], s: [4.4, 2.0], m: MAT.wallPaint },
-    { p: [23.8, 3.75, 25.7], s: [3.0, 1.6], m: MAT.pearl },
-    { p: [21.5, 3.5, 27.0], s: [2.6, 1.3], m: MAT.warmCeramic },
-    { p: [24.6, 4.2, 22.7], s: [2.3, 1.25], m: MAT.wallPaint },
-    { p: [22.2, 3.62, 24.8], s: [2.1, 1.15], m: MAT.softGlow },
+    { p: [u(812), 7.4, u(960)], s: [13.2, 6.0], m: MAT.wallPaint },
+    { p: [u(952), 6.9, u(1028)], s: [9.0, 4.8], m: MAT.pearl },
+    { p: [u(860), 6.4, u(1080)], s: [7.8, 3.9], m: MAT.warmCeramic },
+    { p: [u(984), 7.7, u(908)], s: [6.9, 3.75], m: MAT.wallPaint },
+    { p: [u(888), 6.6, u(992)], s: [6.3, 3.45], m: MAT.softGlow },
   ];
   return (
     <group ref={group}>
@@ -155,8 +195,8 @@ export function FloatingCeiling() {
       ))}
       {/* thin light seams between panel layers */}
       {[
-        { p: [21.9, 3.86, 24.9] as const, l: 3.4 },
-        { p: [23.2, 3.66, 25.2] as const, l: 2.6 },
+        { p: [u(876), 7.05, u(996)] as const, l: 10.2 },
+        { p: [u(928), 6.7, u(1008)] as const, l: 7.8 },
       ].map((sm, i) => (
         <mesh key={i} material={MAT.neonWhite} position={[sm.p[0], sm.p[1], sm.p[2]]}>
           <boxGeometry args={[sm.l, 0.012, 0.012]} />
@@ -205,28 +245,28 @@ export function SmartGlass() {
   const x = u(696);
   const z = u(880);
   return (
-    <group position={[x + 0.24, 1.95, z]}>
+    <group position={[x + 0.6, 3.4, z]}>
       {/* cantilevered frame */}
-      <mesh material={MAT.pearl} position={[0, 0.78, 0]} castShadow>
-        <boxGeometry args={[0.5, 0.07, 1.9]} />
+      <mesh material={MAT.pearl} position={[0, 1.9, 0]} castShadow>
+        <boxGeometry args={[1.2, 0.16, 4.6]} />
       </mesh>
-      <mesh material={MAT.pearl} position={[0, -0.78, 0]} castShadow>
-        <boxGeometry args={[0.5, 0.07, 1.9]} />
+      <mesh material={MAT.pearl} position={[0, -1.9, 0]} castShadow>
+        <boxGeometry args={[1.2, 0.16, 4.6]} />
       </mesh>
       {/* frosted back + clear front */}
-      <mesh material={MAT.frost} position={[-0.12, 0, 0]} rotation-y={Math.PI / 2}>
-        <planeGeometry args={[1.82, 1.5]} />
+      <mesh material={MAT.frost} position={[-0.3, 0, 0]} rotation-y={Math.PI / 2}>
+        <planeGeometry args={[4.4, 3.6]} />
       </mesh>
-      <mesh material={MAT.glass} position={[0.22, 0, 0]} rotation-y={Math.PI / 2}>
-        <planeGeometry args={[1.86, 1.56]} />
+      <mesh material={MAT.glass} position={[0.55, 0, 0]} rotation-y={Math.PI / 2}>
+        <planeGeometry args={[4.5, 3.75]} />
       </mesh>
       {/* the information layer floats between the two surfaces */}
-      <mesh material={uiMat} position={[0.08, 0, 0]} rotation-y={Math.PI / 2}>
-        <planeGeometry args={[1.34, 1.42]} />
+      <mesh material={uiMat} position={[0.2, 0, 0]} rotation-y={Math.PI / 2}>
+        <planeGeometry args={[3.2, 3.4]} />
       </mesh>
       {/* single quiet state indicator */}
-      <mesh material={MAT.neonCyan} position={[0.23, -0.66, 0.8]}>
-        <sphereGeometry args={[0.022, 8, 8]} />
+      <mesh material={MAT.neonCyan} position={[0.58, -1.6, 1.9]}>
+        <sphereGeometry args={[0.055, 8, 8]} />
       </mesh>
     </group>
   );
@@ -259,16 +299,7 @@ export function HeroCore({ sim }: { sim: LabSim }) {
       ),
     [],
   );
-  const lettersMat = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        map: letters,
-        transparent: true,
-        side: THREE.DoubleSide,
-        toneMapped: false,
-      }),
-    [letters],
-  );
+
   const shaftMat = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
@@ -283,7 +314,7 @@ export function HeroCore({ sim }: { sim: LabSim }) {
   );
   const x = u(788);
   const z = u(956);
-  const coreY = 3.55;
+  const coreY = 9.0;
   useFrame(() => {
     const t = performance.now() / 1000;
     const g = rings.current;
@@ -295,7 +326,7 @@ export function HeroCore({ sim }: { sim: LabSim }) {
     }
     const dx = sim.avatar.x - 788;
     const dy = sim.avatar.y - 956;
-    const isNear = dx * dx + dy * dy < 150 * 150;
+    const isNear = dx * dx + dy * dy < 200 * 200;
     if (isNear !== nearRef.current) {
       nearRef.current = isNear;
       setNear(isNear);
@@ -305,30 +336,30 @@ export function HeroCore({ sim }: { sim: LabSim }) {
     <group>
       <group ref={rings} position={[x, coreY, z]}>
         <mesh material={MAT.neonWhite} rotation-x={1.05}>
-          <torusGeometry args={[1.28, 0.045, 10, 64]} />
+          <torusGeometry args={[3.4, 0.12, 10, 72]} />
         </mesh>
         <mesh material={MAT.neonCyan} rotation-x={-0.65}>
-          <torusGeometry args={[0.92, 0.035, 10, 56]} />
+          <torusGeometry args={[2.4, 0.1, 10, 64]} />
         </mesh>
         <mesh material={MAT.pearl} castShadow>
-          <sphereGeometry args={[0.52, 24, 18]} />
+          <sphereGeometry args={[1.35, 28, 20]} />
         </mesh>
         <mesh material={MAT.coreGlow}>
-          <sphereGeometry args={[0.68, 18, 14]} />
+          <sphereGeometry args={[1.78, 20, 16]} />
         </mesh>
         {/* five business nodes joined to the core by light spokes */}
         {CORE_NODES.map((id, i) => {
           const ang = (i / CORE_NODES.length) * Math.PI * 2;
           return (
             <group key={id} rotation-y={ang}>
-              <mesh material={MAT.holo} rotation-z={Math.PI / 2} position={[0.62, 0, 0]}>
-                <cylinderGeometry args={[0.012, 0.012, 0.85, 6]} />
+              <mesh material={MAT.holo} rotation-z={Math.PI / 2} position={[1.6, 0, 0]}>
+                <cylinderGeometry args={[0.03, 0.03, 2.2, 6]} />
               </mesh>
-              <mesh material={nodeMats[i]} position={[1.1, 0, 0]}>
-                <sphereGeometry args={[0.085, 12, 10]} />
+              <mesh material={nodeMats[i]} position={[2.85, 0, 0]}>
+                <sphereGeometry args={[0.22, 12, 10]} />
               </mesh>
               <Html
-                position={[1.1, 0.2, 0]}
+                position={[2.85, 0.55, 0]}
                 center
                 distanceFactor={6}
                 style={{ pointerEvents: "none", whiteSpace: "nowrap" }}
@@ -356,11 +387,15 @@ export function HeroCore({ sim }: { sim: LabSim }) {
           );
         })}
       </group>
-      <mesh material={lettersMat} position={[x, 2.35, z]}>
-        <planeGeometry args={[3.4, 0.5]} />
-      </mesh>
-      <mesh material={shaftMat} position={[x, 2.15, z]}>
-        <cylinderGeometry args={[0.5, 0.85, 3.1, 20, 1, true]} />
+      <TwoSidedSign
+        texture={letters}
+        width={8.5}
+        height={1.25}
+        transparent
+        position={[x, 5.6, z]}
+      />
+      <mesh material={shaftMat} position={[x, 5.0, z]}>
+        <cylinderGeometry args={[1.3, 2.2, 8.0, 24, 1, true]} />
       </mesh>
     </group>
   );
@@ -414,35 +449,35 @@ export function RingGate({ sim }: { sim: LabSim }) {
   );
   return (
     <group ref={group}>
-      <mesh material={MAT.neonCyan} position={[x, 1.62, z]}>
-        <torusGeometry args={[1.62, 0.075, 12, 64]} />
+      <mesh material={MAT.neonCyan} position={[x, 4.2, z]}>
+        <torusGeometry args={[4.2, 0.19, 12, 72]} />
       </mesh>
-      <mesh position={[x, 1.62, z]}>
-        <torusGeometry args={[1.86, 0.028, 8, 64]} />
+      <mesh position={[x, 4.2, z]}>
+        <torusGeometry args={[4.8, 0.07, 8, 72]} />
         <meshBasicMaterial ref={pulse} color="#dff4ff" transparent opacity={0.6} toneMapped={false} />
       </mesh>
-      {[-1.62, 1.62].map((ox) => (
+      {[-4.2, 4.2].map((ox) => (
         <group key={ox} position={[x + ox, 0, z]}>
-          <mesh material={MAT.pearl} position={[0, 0.26, 0]} castShadow>
-            <cylinderGeometry args={[0.09, 0.13, 0.52, 12]} />
+          <mesh material={MAT.pearl} position={[0, 0.65, 0]} castShadow>
+            <cylinderGeometry args={[0.22, 0.32, 1.3, 14]} />
           </mesh>
-          <mesh material={MAT.neonCyan} position={[0, 0.53, 0]}>
-            <cylinderGeometry args={[0.065, 0.065, 0.025, 12]} />
+          <mesh material={MAT.neonCyan} position={[0, 1.33, 0]}>
+            <cylinderGeometry args={[0.17, 0.17, 0.06, 14]} />
           </mesh>
         </group>
       ))}
-      <group position={[x, 3.75, z]}>
+      <group position={[x, 9.2, z]}>
         <mesh material={MAT.holo} position={[0, 0, -0.06]}>
-          <planeGeometry args={[3.3, 1.12]} />
+          <planeGeometry args={[8.2, 2.8]} />
         </mesh>
         <mesh material={signMat}>
-          <planeGeometry args={[2.9, 0.83]} />
+          <planeGeometry args={[7.2, 2.06]} />
         </mesh>
-        <mesh material={MAT.neonCyan} position={[0, -0.5, 0.02]}>
-          <boxGeometry args={[2.9, 0.02, 0.02]} />
+        <mesh material={MAT.neonCyan} position={[0, -1.24, 0.03]}>
+          <boxGeometry args={[7.2, 0.05, 0.05]} />
         </mesh>
-        <mesh material={MAT.neonWhite} position={[0, 0.48, 0.02]}>
-          <boxGeometry args={[1.7, 0.014, 0.014]} />
+        <mesh material={MAT.neonWhite} position={[0, 1.2, 0.03]}>
+          <boxGeometry args={[4.2, 0.035, 0.035]} />
         </mesh>
       </group>
     </group>
@@ -488,21 +523,21 @@ export function ArrivalPlatform() {
   return (
     <group position={[x, 0, z]}>
       <mesh material={MAT.frost} rotation-x={-Math.PI / 2} position={[0, 0.022, 0]}>
-        <circleGeometry args={[1.05, 40]} />
+        <circleGeometry args={[3.1, 48]} />
       </mesh>
       <mesh rotation-x={-Math.PI / 2} position={[0, 0.03, 0]}>
-        <ringGeometry args={[0.98, 1.06, 40]} />
+        <ringGeometry args={[2.9, 3.14, 48]} />
         <meshBasicMaterial ref={ring} color="#5fd4ff" transparent opacity={0.8} toneMapped={false} />
       </mesh>
       <mesh material={MAT.neonWhite} rotation-x={-Math.PI / 2} position={[0, 0.028, 0]}>
-        <ringGeometry args={[0.62, 0.665, 36]} />
+        <ringGeometry args={[1.85, 1.98, 40]} />
       </mesh>
       <mesh ref={spawnRing} rotation-x={-Math.PI / 2} position={[0, 0.034, 0]}>
-        <ringGeometry args={[1.0, 1.08, 40]} />
+        <ringGeometry args={[3.0, 3.22, 48]} />
         <meshBasicMaterial color="#bfe9ff" transparent opacity={0} toneMapped={false} depthWrite={false} />
       </mesh>
-      <mesh material={pillarMat} position={[0, 1.5, 0]}>
-        <cylinderGeometry args={[0.85, 1.0, 3.0, 24, 1, true]} />
+      <mesh material={pillarMat} position={[0, 3.7, 0]}>
+        <cylinderGeometry args={[2.5, 3.0, 7.5, 28, 1, true]} />
       </mesh>
     </group>
   );
@@ -544,7 +579,7 @@ export function GuidancePulse() {
       rotation-x={-Math.PI / 2}
       position={[u(880), 0.026, u(953)]}
     >
-      <planeGeometry args={[1.0, 7.2]} />
+      <planeGeometry args={[3.0, 21.6]} />
     </mesh>
   );
 }
@@ -556,10 +591,10 @@ export function FloorSlits() {
       {[u(1000), u(1032)].map((zz, i) => (
         <group key={i} position={[u(760), 0, zz]}>
           <mesh material={MAT.neonWhite} rotation-x={-Math.PI / 2} position={[0, 0.016, 0]}>
-            <planeGeometry args={[3.0, 0.05]} />
+            <planeGeometry args={[9.0, 0.15]} />
           </mesh>
           <mesh material={MAT.frost} rotation-x={-Math.PI / 2} position={[0, 0.022, 0]}>
-            <planeGeometry args={[3.1, 0.12]} />
+            <planeGeometry args={[9.3, 0.36]} />
           </mesh>
         </group>
       ))}
@@ -569,7 +604,7 @@ export function FloorSlits() {
 
 /* ── curved corner shells: the room stops being a box (§2) ─────────── */
 export function CurvedCorners() {
-  const H = 2.7;
+  const H = 5.4;
   return (
     <group>
       {/* NW corner (680,800): interior quadrant +x/+z */}
@@ -577,14 +612,14 @@ export function CurvedCorners() {
         material={MAT.pearl}
         position={[u(696), H / 2, u(816)]}
       >
-        <cylinderGeometry args={[1.15, 1.15, H, 14, 1, true, 0, Math.PI / 2]} />
+        <cylinderGeometry args={[3.0, 3.0, H, 18, 1, true, 0, Math.PI / 2]} />
       </mesh>
       {/* NE corner (1080,800): interior quadrant -x/+z */}
       <mesh
         material={MAT.pearl}
         position={[u(1064), H / 2, u(816)]}
       >
-        <cylinderGeometry args={[1.15, 1.15, H, 14, 1, true, -Math.PI / 2, Math.PI / 2]} />
+        <cylinderGeometry args={[3.0, 3.0, H, 18, 1, true, -Math.PI / 2, Math.PI / 2]} />
       </mesh>
     </group>
   );
@@ -592,9 +627,9 @@ export function CurvedCorners() {
 
 /* ── floating fascia crown, two stepped layers (§2 architecture) ──── */
 export function EntranceFascia({ sim }: { sim: LabSim }) {
-  const y = 3.0;
-  const t = 0.3;
-  const d = 0.22;
+  const y = 5.7;
+  const t = 0.55;
+  const d = 0.5;
   const west = u(680) + 0.1;
   const east = u(1080) - 0.1;
   const north = u(800) + 0.1;
@@ -630,14 +665,14 @@ export function EntranceFascia({ sim }: { sim: LabSim }) {
       {/* stepped second layer, slightly tilted — the "cut" crown */}
       <mesh
         material={MAT.wallPaint}
-        position={[p[0], p[1] + 0.3, p[2]]}
+        position={[p[0], p[1] + 0.6, p[2]]}
         rotation-x={s[2] > s[0] ? 0 : tilt}
         rotation-z={s[2] > s[0] ? tilt : 0}
       >
-        <boxGeometry args={[s[0] * 0.88, 0.1, s[2] * 0.88]} />
+        <boxGeometry args={[s[0] * 0.88, 0.2, s[2] * 0.88]} />
       </mesh>
       <mesh material={MAT.neonWhite} position={[p[0], p[1] - t / 2 - 0.015, p[2]]}>
-        <boxGeometry args={[s[0] * 0.995, 0.016, s[2] * 0.995]} />
+        <boxGeometry args={[s[0] * 0.995, 0.035, s[2] * 0.995]} />
       </mesh>
     </>
   );
@@ -670,23 +705,23 @@ export function HoloGreeting() {
   );
   const g = useRef<THREE.Group>(null);
   useFrame(() => {
-    if (g.current) g.current.position.y = 1.55 + Math.sin(performance.now() / 1600) * 0.05;
+    if (g.current) g.current.position.y = 3.2 + Math.sin(performance.now() / 1600) * 0.1;
   });
   const x = u(972);
   const z = u(1052);
   return (
-    <group ref={g} position={[x, 1.55, z]} rotation-y={-0.5}>
+    <group ref={g} position={[x, 3.2, z]} rotation-y={-0.5}>
       <mesh material={MAT.holo} position={[0, 0, -0.05]}>
-        <planeGeometry args={[1.9, 1.06]} />
+        <planeGeometry args={[4.4, 2.45]} />
       </mesh>
       <mesh material={mat}>
-        <planeGeometry args={[1.66, 0.83]} />
+        <planeGeometry args={[3.9, 1.95]} />
       </mesh>
-      <mesh material={MAT.neonMint} position={[0, -0.47, 0.02]}>
-        <boxGeometry args={[1.66, 0.016, 0.016]} />
+      <mesh material={MAT.neonMint} position={[0, -1.1, 0.04]}>
+        <boxGeometry args={[3.9, 0.04, 0.04]} />
       </mesh>
-      <mesh material={MAT.brushed} position={[0, -0.83, 0]}>
-        <cylinderGeometry args={[0.028, 0.05, 1.44, 8]} />
+      <mesh material={MAT.brushed} position={[0, -1.9, 0]}>
+        <cylinderGeometry args={[0.07, 0.12, 3.1, 8]} />
       </mesh>
     </group>
   );

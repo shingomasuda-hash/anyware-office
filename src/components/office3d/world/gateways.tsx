@@ -62,16 +62,16 @@ function buildGateways(): Gateway[] {
     if (horizontal) {
       out.push({
         area: area.id,
-        x: cx + door.rect.w / 2 + 34,
-        y: cy + (roomBelow ? -30 : 30),
+        x: cx + door.rect.w / 2 + 46,
+        y: cy + (roomBelow ? -42 : 42),
         rotY: roomBelow ? Math.PI : 0,
       });
     } else {
       const roomRight = cx < b.x + b.w / 2;
       out.push({
         area: area.id,
-        x: cx + (roomRight ? -30 : 30),
-        y: cy + door.rect.h / 2 + 34,
+        x: cx + (roomRight ? -42 : 42),
+        y: cy + door.rect.h / 2 + 46,
         rotY: roomRight ? -Math.PI / 2 : Math.PI / 2,
       });
     }
@@ -105,6 +105,7 @@ function GatewayStele({ gate, sim }: { gate: Gateway; sim: LabSim }) {
         transparent: true,
         opacity: 0.82,
         toneMapped: false,
+        side: THREE.FrontSide,
       }),
     [tex],
   );
@@ -123,20 +124,24 @@ function GatewayStele({ gate, sim }: { gate: Gateway; sim: LabSim }) {
   return (
     <group position={[u(gate.x), 0, u(gate.y)]} rotation-y={gate.rotY}>
       {/* slim stele post */}
-      <mesh material={MAT.pearl} position={[0, 0.62, 0]} castShadow>
-        <boxGeometry args={[0.1, 1.24, 0.1]} />
+      <mesh material={MAT.pearl} position={[0, 1.3, 0]} castShadow>
+        <boxGeometry args={[0.2, 2.6, 0.2]} />
       </mesh>
-      {/* holo info panel */}
-      <mesh material={panelMat} position={[0, 1.5, 0.02]}>
-        <planeGeometry args={[1.5, 0.59]} />
+      {/* holo info panel — mirrored twin on the back so the sign reads
+          correctly from either approach direction */}
+      <mesh material={panelMat} position={[0, 3.2, 0.04]}>
+        <planeGeometry args={[3.2, 1.26]} />
+      </mesh>
+      <mesh material={panelMat} position={[0, 3.2, 0.016]} rotation-y={Math.PI}>
+        <planeGeometry args={[3.2, 1.26]} />
       </mesh>
       {/* area-colored underline: the room's identity color */}
-      <mesh material={accentMat} position={[0, 1.19, 0.03]}>
-        <boxGeometry args={[1.5, 0.022, 0.022]} />
+      <mesh material={accentMat} position={[0, 2.53, 0.06]}>
+        <boxGeometry args={[3.2, 0.05, 0.05]} />
       </mesh>
       {/* floor halo in the same accent */}
       <mesh material={accentMat} rotation-x={-Math.PI / 2} position={[0, 0.024, 0]}>
-        <ringGeometry args={[0.3, 0.34, 24]} />
+        <ringGeometry args={[0.85, 0.98, 28]} />
       </mesh>
     </group>
   );

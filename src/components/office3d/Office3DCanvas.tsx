@@ -12,8 +12,9 @@ import type { Direction } from "@/types/office";
 import type { LabSim } from "./LabSim";
 import AvatarMesh, { type AvatarSample } from "./avatars/AvatarMesh";
 import { World } from "./world/World";
-import { WORLD_UNIT_TO_METERS, worldTo3D } from "./world/scale";
-import { WALLS } from "@/lib/game/map";
+import { u, WORLD_SCALE_RATIO, WORLD_UNIT_TO_METERS, worldTo3D } from "./world/scale";
+import { AREAS, WALLS } from "@/lib/game/map";
+import { ROOM_THEMES } from "./world/rooms";
 
 const SKY = "#e9e4f5";
 
@@ -40,8 +41,8 @@ const DIR_VEC: Record<Direction, [number, number]> = {
   right: [1, 0],
 };
 
-const MIN_BOOM = 1.7; // metres — closest the camera may tuck in
-const CAM_PAD = 0.42; // metres of clearance kept from any wall face
+const MIN_BOOM = 3.4; // metres — closest the camera may tuck in
+const CAM_PAD = 0.7; // metres of clearance kept from any wall face
 
 /**
  * Longest boom length (metres) from the avatar along (ox,oz) that keeps
@@ -112,9 +113,9 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
   const camYaw = useRef(0); // 0 = camera south of avatar, looking north
   // Mobile rides a little higher and further back so the tall viewport
   // shows the world's depth instead of a giant avatar (§23).
-  const camY = isMobile ? 3.9 : 3.15;
-  const camDist = isMobile ? 4.9 : 3.9;
-  const lookAhead = isMobile ? 2.4 : 1.7;
+  const camY = isMobile ? 8.2 : 6.8;
+  const camDist = isMobile ? 10.5 : 8.6;
+  const lookAhead = isMobile ? 4.6 : 3.4;
   useFrame(() => {
     const now = performance.now();
     const dt = Math.min((now - lastT.current) / 1000, 0.3);
@@ -138,7 +139,7 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
     // further down, so being cornered turns into a clean look into the
     // room instead of a close-up of the wall behind you.
     const t = Math.max(0, Math.min(1, (dist - MIN_BOOM) / Math.max(0.001, camDist - MIN_BOOM)));
-    vDesired.set(x + ox * dist, camY + (1 - t) * 1.55, z + oz * dist);
+    vDesired.set(x + ox * dist, camY + (1 - t) * 2.4, z + oz * dist);
     if (first.current) {
       camera.position.copy(vDesired);
       first.current = false;
@@ -150,7 +151,7 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
       camera.position.lerp(vDesired, 1 - Math.exp(-rate * dt));
     }
     // look further down as the boom compresses
-    vLook.set(x - ox * lookAhead * t, 1.05 - (1 - t) * 0.75, z - oz * lookAhead * t);
+    vLook.set(x - ox * lookAhead * t, 1.05 - (1 - t) * 1.1, z - oz * lookAhead * t);
     camera.lookAt(vLook);
   });
   return null;
@@ -161,7 +162,7 @@ function Lights() {
   useEffect(() => {
     const l = light.current;
     if (!l) return;
-    l.target.position.set(22, 0, 15);
+    l.target.position.set(u(880), 0, u(600));
     l.target.updateMatrixWorld();
   }, []);
   return (
@@ -169,29 +170,43 @@ function Lights() {
       <hemisphereLight args={["#edf5fc", "#dde2e8", 1.0]} />
       <directionalLight
         ref={light}
-        position={[40, 30, -8]}
+        position={[u(1600), 90, u(-320)]}
         intensity={1.45}
         color="#fff6e8"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
-        shadow-camera-left={-30}
-        shadow-camera-right={30}
-        shadow-camera-top={28}
-        shadow-camera-bottom={-28}
-        shadow-camera-near={4}
-        shadow-camera-far={90}
-        shadow-bias={-0.0004}
+        shadow-camera-left={-90}
+        shadow-camera-right={90}
+        shadow-camera-top={84}
+        shadow-camera-bottom={-84}
+        shadow-camera-near={10}
+        shadow-camera-far={270}
+        shadow-bias={-0.0012}
       />
       <ambientLight intensity={0.1} color="#f2f7fd" />
       {/* per-area accent fills — a hint of colored light gives each
           room its own atmosphere without going neon-dark (§3). The
           entrance key light is warm architectural white; cyan there is
           reserved for information surfaces (§11). */}
-      <pointLight position={[19.7, 2.8, 25.2]} intensity={11} color="#fff3e4" distance={9} decay={2} />
-      <pointLight position={[22.2, 3.4, 24.8]} intensity={6} color="#ecf4fc" distance={6} decay={2} />
-      <pointLight position={[4.7, 2.8, 2.7]} intensity={10} color="#eef4ff" distance={10} decay={2} />
-      <pointLight position={[30.7, 2.6, 3.5]} intensity={12} color="#c9b2ff" distance={9} decay={2} />
+      <pointLight position={[u(788), 5.2, u(1008)]} intensity={95} color="#fff3e4" distance={27} decay={2} />
+      <pointLight position={[u(888), 6.2, u(992)]} intensity={55} color="#ecf4fc" distance={18} decay={2} />
+      {/* one key light per district, tinted by its theme (§room world
+          building) so each room reads with its own atmosphere */}
+      {AREAS.filter((a) => a.id !== "ENTRANCE").map((a) => (
+        <pointLight
+          key={a.id}
+          position={[
+            u(a.bounds.x + a.bounds.w / 2),
+            5.2,
+            u(a.bounds.y + a.bounds.h / 2),
+          ]}
+          intensity={95}
+          color={ROOM_THEMES[a.id].light}
+          distance={34}
+          decay={2}
+        />
+      ))}
     </>
   );
 }
@@ -357,12 +372,12 @@ export default function Office3DCanvas({
     <Canvas
       shadows
       dpr={dpr}
-      camera={{ fov: isMobile ? 56 : 50, near: 0.2, far: 140, position: [22, 3.7, 32] }}
+      camera={{ fov: isMobile ? 56 : 50, near: 0.3, far: 420, position: [u(880), 11, u(1280)] }}
       gl={{ antialias: true, powerPreference: "high-performance" }}
       style={{ touchAction: "none" }}
       onCreated={({ scene }) => {
         scene.background = new THREE.Color(SKY);
-        scene.fog = new THREE.Fog(SKY, 42, 125);
+        scene.fog = new THREE.Fog(SKY, 126, 375);
       }}
     >
       <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(Math.min(window.devicePixelRatio, 2))}>
@@ -372,9 +387,9 @@ export default function Office3DCanvas({
             below the floating ceiling so panels don't darken the floor;
             frames=1 → rendered once, zero per-frame cost. */}
         <ContactShadows
-          position={[22, 0.018, 24.8]}
-          scale={13}
-          far={2.4}
+          position={[u(880), 0.05, u(992)]}
+          scale={13 * WORLD_SCALE_RATIO}
+          far={7.2}
           blur={2.4}
           opacity={0.38}
           resolution={512}
