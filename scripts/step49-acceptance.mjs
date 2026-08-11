@@ -239,7 +239,15 @@ try {
   // profile card via 3D avatar click on A (project B's avatar to screen)
   console.log("\n=== PROFILE INTERACTION (3D click) ===");
   await teleport(A, 830, 1100);
-  await teleport(B, 930, 1100);
+  // Place B 100 units IN FRONT of A's current facing — the chase
+  // camera parks behind A, so "in front" is the only spot guaranteed
+  // to be on screen regardless of which way the previous tests left
+  // A pointing.
+  {
+    const sA = await snap(A);
+    const F = { up: [0, -100], down: [0, 100], left: [-100, 0], right: [100, 0] }[sA.direction];
+    await teleport(B, 830 + F[0], 1100 + F[1]);
+  }
   await sleep(900);
   const bPos = await A.evaluate(() => {
     const r = window.__officeRealtime?.remotes()?.[0];
@@ -254,17 +262,25 @@ try {
   // while the card is opening would close it.
   let cardUp = false;
   for (const dy of [-40, -20, -55, 0, -70]) {
+    const dbg = await A.evaluate(() => ({
+      snap: window.__officeGame?.snapshot(),
+      remote: window.__officeRealtime?.remotes()?.[0] ?? null,
+      cam: window.__officeLab?.stats()?.camera ?? null,
+    }));
     const p = await A.evaluate(() => {
       const r = window.__officeRealtime?.remotes()?.[0];
       if (!r) return null;
       return window.__officeGame?.worldToScreen(r.x, r.y) ?? null;
     });
+    console.log(`DBG card try dy=${dy} p=${JSON.stringify(p)} snap=${JSON.stringify(dbg.snap)} remote=${dbg.remote ? Math.round(dbg.remote.x) + "," + Math.round(dbg.remote.y) : "none"} cam=${JSON.stringify(dbg.cam)}`);
     if (!p) continue;
+    if (p.x < 0 || p.x > 1440 || p.y < 0 || p.y > 900) { console.log("DBG offscreen, skip"); continue; }
     await A.mouse.click(p.x, p.y + dy);
     cardUp = await A.locator('[data-testid="profile-card"]')
       .waitFor({ timeout: 7000 }).then(() => true).catch(() => false);
     if (cardUp) break;
   }
+  if (!cardUp) await A.screenshot({ path: "card-fail.png", timeout: 90000 }).catch(() => {});
   record("A: click B 3D avatar → profile card", cardUp);
   if (cardUp) {
     await A.keyboard.press("Escape");
