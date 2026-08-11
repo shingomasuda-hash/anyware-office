@@ -100,41 +100,26 @@ function Lights() {
 }
 
 /**
- * Compiles every material/shader once the scene graph has mounted,
- * then signals readiness. Keeping the loading overlay up until shaders
- * are warm means the first real frame — and the first keyboard input —
- * never lands in the middle of a long compile stall (worst on software
- * renderers, but a visible hitch on real GPUs too).
+ * Holds the loading overlay until the renderer has produced two REAL
+ * frames. Real renders allocate shadow maps and upload every texture
+ * through the normal pipeline, so shaders and samplers always match —
+ * unlike gl.compile(), which pre-links shadow-sampling programs before
+ * the shadow map exists and breaks strict drivers (Metal/ANGLE threw
+ * GL_INVALID_OPERATION sampler mismatches on every draw). The warmup
+ * frames also absorb the first-frame compile stall, so the first
+ * keyboard input never lands inside it.
  */
-function PrecompileGate({ onReady }: { onReady: () => void }) {
-  const gl = useThree((s) => s.gl);
-  const scene = useThree((s) => s.scene);
-  const camera = useThree((s) => s.camera);
-  useEffect(() => {
-    let cancelled = false;
-    // Defer one tick so the whole world subtree is mounted first.
-    const id = window.setTimeout(() => {
-      gl.compile(scene, camera);
-      // gl.compile links programs but does not upload textures; push
-      // every map to the GPU now so the first visible frame doesn't
-      // stall on dozens of canvas-texture uploads.
-      scene.traverse((obj) => {
-        const mesh = obj as THREE.Mesh;
-        if (!mesh.isMesh) return;
-        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        for (const mat of mats) {
-          const m = mat as THREE.MeshStandardMaterial;
-          if (m.map) gl.initTexture(m.map);
-          if (m.emissiveMap) gl.initTexture(m.emissiveMap);
-        }
-      });
-      if (!cancelled) onReady();
-    }, 0);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(id);
-    };
-  }, [gl, scene, camera, onReady]);
+function WarmupGate({ onReady }: { onReady: () => void }) {
+  const frames = useRef(0);
+  const done = useRef(false);
+  useFrame(() => {
+    if (done.current) return;
+    frames.current += 1;
+    if (frames.current >= 2) {
+      done.current = true;
+      onReady();
+    }
+  });
   return null;
 }
 
@@ -308,7 +293,7 @@ export default function Office3DCanvas({
           onClick={onPickSelf}
         />
         <RemoteAvatars sim={sim} roster={roster} onPickPerson={onPickPerson} />
-        <PrecompileGate onReady={onReady} />
+        <WarmupGate onReady={onReady} />
       </PerformanceMonitor>
     </Canvas>
   );
