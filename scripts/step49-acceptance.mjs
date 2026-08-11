@@ -76,6 +76,19 @@ const labReady = async (p) => {
 const waitLive = (p) =>
   waitFor(async () =>
     (await p.locator('[data-testid="realtime-status"]').textContent().catch(() => ""))?.includes("LIVE"), 40000);
+// Input settle: under software WebGL a shader/texture-compile stall can
+// swallow a whole keydown..keyup window (both events process back to
+// back once the stall ends). Require 3 consecutive rendered frames with
+// a responsive main thread before dispatching synthetic keyboard input.
+const settleInput = async (p, frameMs = 1500, frames = 3, budgetMs = 45000) => {
+  const start = Date.now();
+  let ok = 0;
+  while (ok < frames && Date.now() - start < budgetMs) {
+    const t0 = Date.now();
+    await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(1))));
+    ok = Date.now() - t0 < frameMs ? ok + 1 : 0;
+  }
+};
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 
@@ -111,11 +124,10 @@ try {
   // can't press a key before the first frame is on screen, and under
   // software WebGL the first frames arrive seconds after "ready".
   console.log("\n=== MOVEMENT / COLLISION / AREAS ===");
-  await waitFor(async () =>
-    (await A.evaluate(() => window.__officeLab?.stats()?.fps ?? 0)) > 0, 30000, 500);
+  await settleInput(A);
   const s0 = await snap(A);
   await A.keyboard.down("w");
-  await sleep(900);
+  await sleep(2000);
   await A.keyboard.up("w");
   const s1 = await snap(A);
   record("WASD moves the avatar", s0 && s1 && s1.y < s0.y - 60, `dy=${s0.y - s1.y}`);
@@ -184,6 +196,7 @@ try {
   // WASD case) — the second attempt runs on a warm renderer.
   let abTravel = 0;
   for (let attempt = 0; attempt < 2 && abTravel <= 80; attempt++) {
+    await settleInput(A);
     const rb0 = await remoteOfPos(B);
     await A.keyboard.down("d");
     await sleep(1500);
