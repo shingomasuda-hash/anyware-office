@@ -161,7 +161,7 @@ export default function OfficeLabShell() {
 
   return (
     <OfficeDataProvider>
-      <div className="relative h-[100dvh] w-full overflow-hidden overscroll-none bg-[#e3eef7]">
+      <div className="relative h-[100dvh] w-full overflow-hidden overscroll-none bg-[#e9e4f5]">
         {supported && user ? (
           <CanvasErrorBoundary>
             <div className="absolute inset-0" data-testid="office-lab-canvas">
@@ -180,7 +180,7 @@ export default function OfficeLabShell() {
 
         {!ready ? (
           <div
-            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-[#e3eef7]"
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-[#e9e4f5]"
             data-testid="lab-loading"
           >
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-sky-300 border-t-sky-600" />

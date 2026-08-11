@@ -13,7 +13,7 @@ import AvatarMesh, { type AvatarSample } from "./avatars/AvatarMesh";
 import { World } from "./world/World";
 import { worldTo3D } from "./world/scale";
 
-const SKY = "#e3eef7";
+const SKY = "#e9e4f5";
 
 declare global {
   interface Window {
@@ -86,7 +86,7 @@ function Lights() {
           room its own atmosphere without going neon-dark (§3) */}
       <pointLight position={[19.7, 2.6, 25.2]} intensity={14} color="#a8dcff" distance={9} decay={2} />
       <pointLight position={[4.7, 2.8, 2.7]} intensity={10} color="#eef4ff" distance={10} decay={2} />
-      <pointLight position={[30.7, 2.6, 3.5]} intensity={12} color="#9fd4ff" distance={9} decay={2} />
+      <pointLight position={[30.7, 2.6, 3.5]} intensity={12} color="#c9b2ff" distance={9} decay={2} />
     </>
   );
 }
@@ -231,7 +231,7 @@ export default function Office3DCanvas({
       style={{ touchAction: "none" }}
       onCreated={({ scene }) => {
         scene.background = new THREE.Color(SKY);
-        scene.fog = new THREE.Fog(SKY, 36, 100);
+        scene.fog = new THREE.Fog(SKY, 42, 125);
         onReady();
       }}
     >

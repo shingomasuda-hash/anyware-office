@@ -354,18 +354,18 @@ export function Shelf({
       ))}
       {[0.52, 0.98].map((sy, row) => (
         <group key={sy}>
-          {Array.from({ length: 5 }, (_, i) => (
+          {Array.from({ length: 4 }, (_, i) => (
             <mesh
               key={i}
               material={colors[(i + row) % colors.length]}
               position={[
-                -width / 2 + 0.22 + i * ((width - 0.44) / 4),
+                -width / 2 + 0.24 + i * ((width - 0.48) / 3),
                 sy + 0.15,
                 0.01,
               ]}
               castShadow
             >
-              <boxGeometry args={[0.14, 0.26, 0.18]} />
+              <boxGeometry args={[0.15, 0.26, 0.18]} />
             </mesh>
           ))}
         </group>

@@ -72,7 +72,7 @@ function OuterWall({ r }: { r: Rect }) {
   const glassTop = 2.35;
   const horizontal = r.w >= r.h;
   const len = horizontal ? w : d;
-  const mullions = Math.max(1, Math.round(len / 3.2));
+  const mullions = Math.max(1, Math.round(len / 4.8));
   return (
     <group position={[cx, 0, cz]}>
       <mesh material={MAT.wallWarm} position={[0, sill / 2, 0]} castShadow receiveShadow>
@@ -216,15 +216,152 @@ function TextPanel({
   );
 }
 
-/** Exterior: grass, hedges and soft tree blobs so windows never face void. */
+/**
+ * Gradient sky dome — cyan zenith fading into a lavender-pink horizon.
+ * This single mesh does most of the "you logged into a virtual world"
+ * lifting: the space stops reading as a room under a gray sky and
+ * starts reading as a district inside a bright digital city.
+ */
+function SkyDome() {
+  const mat = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d")!;
+    const grad = ctx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, "#5fb4f2");
+    grad.addColorStop(0.45, "#a8d2f7");
+    grad.addColorStop(0.72, "#dfd8f7");
+    grad.addColorStop(1, "#f7dcef");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 64, 512);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return new THREE.MeshBasicMaterial({
+      map: tex,
+      side: THREE.BackSide,
+      toneMapped: false,
+      fog: false,
+      depthWrite: false,
+    });
+  }, []);
+  return (
+    <mesh material={mat} position={[22, 0, 15]}>
+      <sphereGeometry args={[95, 24, 12]} />
+    </mesh>
+  );
+}
+
+/** Shared lit-window texture for the digital-city towers. */
+function useTowerMaterials() {
+  return useMemo(() => {
+    const makeTower = (base: string, win1: string, win2: string) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 64;
+      canvas.height = 128;
+      const ctx = canvas.getContext("2d")!;
+      ctx.fillStyle = base;
+      ctx.fillRect(0, 0, 64, 128);
+      for (let y = 6; y < 122; y += 10) {
+        for (let x = 6; x < 58; x += 12) {
+          const r = (x * 31 + y * 17) % 10;
+          if (r < 4) continue;
+          ctx.fillStyle = r > 7 ? win2 : win1;
+          ctx.fillRect(x, y, 7, 5);
+        }
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+    };
+    return [
+      makeTower("#8ea6d8", "#eaf6ff", "#7fdcff"),
+      makeTower("#a08fd8", "#f3ecff", "#f78ade"),
+      makeTower("#7f9ccc", "#e8f6ff", "#7deccb"),
+    ];
+  }, []);
+}
+
+/**
+ * Digital-city skyline ringing the campus — stylized towers with lit
+ * windows (shared unlit textures, one draw call per tower) so every
+ * perimeter window looks out at a metaverse city, not empty lawn.
+ */
+function MetaCity() {
+  const mats = useTowerMaterials();
+  const towers = useMemo(() => {
+    const list: Array<{ x: number; z: number; w: number; h: number; m: number }> = [];
+    const spots = [
+      { x: -14, z: -12 }, { x: 0, z: -16 }, { x: 14, z: -14 }, { x: 30, z: -17 },
+      { x: 44, z: -13 }, { x: 58, z: -8 }, { x: 60, z: 8 }, { x: 58, z: 24 },
+      { x: 52, z: 38 }, { x: 30, z: 44 }, { x: 8, z: 44 }, { x: -12, z: 40 },
+      { x: -18, z: 20 }, { x: -18, z: 4 },
+    ];
+    spots.forEach((p, i) => {
+      list.push({
+        ...p,
+        w: 3.5 + ((i * 29) % 5),
+        h: 7 + ((i * 41) % 12),
+        m: i % 3,
+      });
+    });
+    return list;
+  }, []);
+  return (
+    <group>
+      {towers.map((t, i) => (
+        <mesh key={i} material={mats[t.m]} position={[t.x, t.h / 2 - 0.1, t.z]}>
+          <boxGeometry args={[t.w, t.h, t.w]} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** Slow-drifting glow orbs — pure "virtual world" garnish. */
+function FloatingOrbs() {
+  const group = useRef<THREE.Group>(null);
+  const orbs = useMemo(() => {
+    const mats = [MAT.orbCyan, MAT.orbMagenta, MAT.orbPurple, MAT.orbMint];
+    return Array.from({ length: 12 }, (_, i) => ({
+      x: [21, 24.5, 18.5, 27, 15, 31, 9, 36, 5, 40, 12.5, 33.5][i],
+      z: [26.5, 24, 22.5, 27.5, 14, 13, 17, 16, 9, 22, 27.9, 25][i],
+      y: 3 + ((i * 23) % 30) / 10,
+      r: 0.16 + ((i * 17) % 12) / 60,
+      speed: 0.35 + ((i * 13) % 10) / 22,
+      phase: i * 1.7,
+      m: mats[i % 4],
+    }));
+  }, []);
+  useFrame(() => {
+    const g = group.current;
+    if (!g) return;
+    const t = performance.now() / 1000;
+    for (let i = 0; i < g.children.length; i++) {
+      const o = orbs[i];
+      g.children[i].position.y = o.y + Math.sin(t * o.speed + o.phase) * 0.35;
+    }
+  });
+  return (
+    <group ref={group}>
+      {orbs.map((o, i) => (
+        <mesh key={i} material={o.m} position={[o.x, o.y, o.z]}>
+          <sphereGeometry args={[o.r, 12, 10]} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** Exterior: grass ring + tree blobs between the campus and the city. */
 function Exterior() {
   const trees = useMemo(() => {
     const list: Array<{ x: number; z: number; s: number }> = [];
     const ring = [
-      ...Array.from({ length: 10 }, (_, i) => ({ x: -6 + i * 6, z: -5.5 })),
-      ...Array.from({ length: 10 }, (_, i) => ({ x: -6 + i * 6, z: 35.5 })),
-      ...Array.from({ length: 5 }, (_, i) => ({ x: -6, z: i * 7.5 })),
-      ...Array.from({ length: 5 }, (_, i) => ({ x: 50, z: i * 7.5 })),
+      ...Array.from({ length: 7 }, (_, i) => ({ x: -5 + i * 8.5, z: -5.5 })),
+      ...Array.from({ length: 7 }, (_, i) => ({ x: -5 + i * 8.5, z: 35.5 })),
+      ...Array.from({ length: 3 }, (_, i) => ({ x: -6, z: 3 + i * 10 })),
+      ...Array.from({ length: 3 }, (_, i) => ({ x: 50, z: 3 + i * 10 })),
     ];
     ring.forEach((p, i) => list.push({ ...p, s: 0.8 + ((i * 37) % 10) / 14 }));
     return list;
@@ -275,6 +412,25 @@ function Floors() {
           </mesh>
         );
       })}
+      {/* digital circulation lines running the main corridor — the
+          floor itself carries data-stream lighting, like a crosswalk
+          in a virtual city block */}
+      <mesh material={MAT.holo} rotation-x={-Math.PI / 2} position={[u(WORLD.w) / 2, 0.024, u(560)]}>
+        <planeGeometry args={[u(WORLD.w) - 2, 0.09]} />
+      </mesh>
+      <mesh material={MAT.holoPurple} rotation-x={-Math.PI / 2} position={[u(WORLD.w) / 2, 0.024, u(640)]}>
+        <planeGeometry args={[u(WORLD.w) - 2, 0.05]} />
+      </mesh>
+      {[500, 590, 680].map((yy, i) => (
+        <mesh
+          key={yy}
+          material={i === 1 ? MAT.neonMagenta : MAT.neonCyan}
+          rotation-x={-Math.PI / 2}
+          position={[u(240 + i * 380), 0.024, u(yy)]}
+        >
+          <planeGeometry args={[0.05, 2.4]} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -430,6 +586,224 @@ function AreaSign({
   );
 }
 
+/**
+ * Dollhouse occlusion shared by world set-pieces: hide the group while
+ * it sits between the south-anchored camera and the avatar.
+ */
+function useSouthOcclusion(sim: LabSim, xUnits: number, yUnits: number, halfWidth = 340) {
+  const group = useRef<THREE.Group>(null);
+  useFrame(() => {
+    const g = group.current;
+    if (!g) return;
+    const occludes =
+      yUnits > sim.avatar.y + 8 &&
+      yUnits < sim.avatar.y + 230 &&
+      Math.abs(xUnits - sim.avatar.x) < halfWidth;
+    g.visible = !occludes;
+  });
+  return group;
+}
+
+/**
+ * Portal gate framing the corridor doorway out of ENTRANCE — pylons +
+ * light beam arching over the walkway ahead of the arriving player.
+ * The area sign hangs inside the arch, so gate and wayfinding read as
+ * one structure ("you are stepping deeper into the world").
+ */
+function EntranceGate({ sim }: { sim: LabSim }) {
+  const group = useSouthOcclusion(sim, 880, 806);
+  const x = u(880);
+  const z = u(806);
+  return (
+    <group ref={group}>
+      {[-1.9, 1.9].map((ox) => (
+        <group key={ox} position={[x + ox, 0, z]}>
+          <mesh material={MAT.resinWhite} position={[0, 1.6, 0]} castShadow>
+            <boxGeometry args={[0.26, 3.2, 0.26]} />
+          </mesh>
+          <mesh material={MAT.neonMagenta} position={[0.14, 1.6, 0.1]}>
+            <boxGeometry args={[0.02, 3.0, 0.06]} />
+          </mesh>
+          <mesh material={MAT.neonCyan} position={[-0.14, 1.6, 0.1]}>
+            <boxGeometry args={[0.02, 3.0, 0.06]} />
+          </mesh>
+        </group>
+      ))}
+      <mesh material={MAT.charcoal} position={[x, 3.32, z]} castShadow>
+        <boxGeometry args={[4.4, 0.24, 0.34]} />
+      </mesh>
+      <mesh material={MAT.neonCyan} position={[x, 3.17, z]}>
+        <boxGeometry args={[4.3, 0.02, 0.3]} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Concentric light rings just inside the gate — the spawn pad. */
+function SpawnPad() {
+  const x = u(788);
+  const z = u(1146);
+  return (
+    <group position={[x, 0, z]}>
+      <mesh material={MAT.holo} rotation-x={-Math.PI / 2} position={[0, 0.024, 0]}>
+        <circleGeometry args={[0.85, 32]} />
+      </mesh>
+      <mesh material={MAT.neonCyan} rotation-x={-Math.PI / 2} position={[0, 0.028, 0]}>
+        <ringGeometry args={[0.82, 0.88, 32]} />
+      </mesh>
+      <mesh material={MAT.neonMagenta} rotation-x={-Math.PI / 2} position={[0, 0.026, 0]}>
+        <ringGeometry args={[0.55, 0.585, 32]} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Rotating holo monument — the lobby's symbolic centerpiece. It sits
+ * on the map's plant rect at (1028,950), so it inherits real collision
+ * from the 2D map instead of being walk-through scenery. */
+function HoloMonument({ sim }: { sim: LabSim }) {
+  const group = useSouthOcclusion(sim, 1041, 963, 200);
+  const rings = useRef<THREE.Group>(null);
+  useFrame(() => {
+    const r = rings.current;
+    if (!r) return;
+    const t = performance.now() / 1000;
+    r.rotation.y = t * 0.5;
+    r.children[1].rotation.x = Math.PI / 2 + Math.sin(t * 0.6) * 0.35;
+  });
+  const x = u(1041);
+  const z = u(963);
+  return (
+    <group ref={group}>
+      <group position={[x, 0, z]}>
+        <mesh material={MAT.matteSilver} position={[0, 0.09, 0]} castShadow>
+          <cylinderGeometry args={[0.5, 0.62, 0.18, 20]} />
+        </mesh>
+        <mesh material={MAT.neonCyan} position={[0, 0.19, 0]}>
+          <cylinderGeometry args={[0.51, 0.51, 0.02, 20]} />
+        </mesh>
+        <group ref={rings} position={[0, 1.45, 0]}>
+          <mesh material={MAT.holo} rotation-x={Math.PI / 2}>
+            <torusGeometry args={[0.62, 0.035, 8, 40]} />
+          </mesh>
+          <mesh material={MAT.holoPurple} rotation-x={Math.PI / 2}>
+            <torusGeometry args={[0.45, 0.028, 8, 36]} />
+          </mesh>
+          <mesh material={MAT.orbCyan}>
+            <sphereGeometry args={[0.2, 14, 12]} />
+          </mesh>
+        </group>
+      </group>
+    </group>
+  );
+}
+
+/** Floating brand letters above reception, Harajuku-rooftop style. */
+function FloatingBrandSign() {
+  const group = useRef<THREE.Group>(null);
+  const tex = useMemo(
+    () =>
+      makeTextTexture(
+        [{ text: "A N Y W A R E", size: 110, color: "#ffffff", weight: 800 }],
+        { width: 1024, height: 160, tracking: 4 },
+      ),
+    [],
+  );
+  const mat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+      }),
+    [tex],
+  );
+  useFrame(() => {
+    const g = group.current;
+    if (!g) return;
+    g.position.y = 4.25 + Math.sin(performance.now() / 1400) * 0.08;
+  });
+  return (
+    <group ref={group} position={[u(788), 4.25, u(950)]}>
+      <mesh material={mat}>
+        <planeGeometry args={[5.2, 0.8]} />
+      </mesh>
+      <mesh material={MAT.neonMagenta} position={[0, -0.52, 0]}>
+        <boxGeometry args={[4.4, 0.025, 0.025]} />
+      </mesh>
+    </group>
+  );
+}
+
+const BILLBOARD_AREAS: Array<{ area: AreaId; bg: string; bgTo: string; fg: string }> = [
+  { area: "SIGNAL", bg: "#2a1240", bgTo: "#7b2a8f", fg: "#ffd7f5" },
+  { area: "TABLE", bg: "#0e2440", bgTo: "#1e5f8f", fg: "#d7f2ff" },
+  { area: "GREEN", bg: "#0e3428", bgTo: "#1f7f5f", fg: "#d9ffef" },
+  { area: "AI", bg: "#301040", bgTo: "#8f2a6f", fg: "#ffe0f8" },
+];
+
+/** One rooftop billboard floating above an area block. */
+function RooftopBillboard({
+  sim,
+  area,
+  bg,
+  bgTo,
+  fg,
+}: {
+  sim: LabSim;
+  area: AreaId;
+  bg: string;
+  bgTo: string;
+  fg: string;
+}) {
+  const b = AREA_BY_ID[area].bounds;
+  const cxUnits = b.x + b.w / 2;
+  const cyUnits = b.y + b.h / 2;
+  const group = useSouthOcclusion(sim, cxUnits, cyUnits, 400);
+  const tex = useMemo(
+    () =>
+      makeTextTexture(
+        [
+          { text: AREA_BY_ID[area].label, size: 96, color: fg, weight: 800 },
+          { text: AREA_BY_ID[area].subtitle, size: 30, color: "#cfe0f0", weight: 500 },
+        ],
+        { width: 640, height: 240, background: bg, backgroundTo: bgTo, tracking: 5 },
+      ),
+    [area, bg, bgTo, fg],
+  );
+  const mat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, side: THREE.DoubleSide }),
+    [tex],
+  );
+  return (
+    <group ref={group}>
+      <group position={[u(cxUnits), 3.45, u(cyUnits)]}>
+        <mesh material={mat}>
+          <planeGeometry args={[2.6, 0.98]} />
+        </mesh>
+        <mesh material={MAT.neonCyan} position={[0, -0.56, 0]}>
+          <boxGeometry args={[2.6, 0.02, 0.02]} />
+        </mesh>
+        <mesh material={MAT.matteSilver} position={[0, -1.0, 0]}>
+          <boxGeometry args={[0.05, 0.85, 0.05]} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+function RooftopBillboards({ sim }: { sim: LabSim }) {
+  return (
+    <group>
+      {BILLBOARD_AREAS.map((s) => (
+        <RooftopBillboard key={s.area} sim={sim} {...s} />
+      ))}
+    </group>
+  );
+}
+
 // ── detailed areas ───────────────────────────────────────────────────
 
 function EntranceArea({ sim }: { sim: LabSim }) {
@@ -494,16 +868,23 @@ function EntranceArea({ sim }: { sim: LabSim }) {
       />
       <CoffeeTable position={[east - 1.9, 0, u(1060)]} />
       <PlantTall position={[east - 0.5, 0, u(980)]} scale={0.85} />
-      {/* map plants (collision-linked) */}
+      {/* map plants (collision-linked) — the (1028,950) rect hosts the
+          holo monument instead of a tree */}
       {FURNITURE.filter(
-        (f) => f.kind === "plant" && f.rect.y > 900 && f.rect.x > 1000,
+        (f) => f.kind === "plant" && f.rect.y > 1000 && f.rect.x > 1000,
       ).map((f, i) => {
         const p = rectTo3D(f.rect);
         return <PlantTall key={i} position={[p.cx, 0, p.cz]} />;
       })}
-      {/* hanging sign at the open corridor edge */}
-      <AreaSign area="ENTRANCE" position={[u(880), 2.25, u(806)]} sim={sim} posts />
+      {/* sign hangs inside the portal gate arch */}
+      <AreaSign area="ENTRANCE" position={[u(880), 2.25, u(806)]} sim={sim} />
       <PlantSmall position={[c.cx - c.w / 2 - 0.5, 0, c.cz + 0.2]} />
+      {/* metaverse gate layer: arrival gate, spawn pad, brand letters,
+          rotating holo monument */}
+      <EntranceGate sim={sim} />
+      <SpawnPad />
+      <FloatingBrandSign />
+      <HoloMonument sim={sim} />
     </group>
   );
 }
@@ -517,7 +898,18 @@ function StaffArea({ sim }: { sim: LabSim }) {
     <group>
       {desks.map((f, i) => {
         const p = rectTo3D(f.rect);
-        return <DeskBank key={i} cx={p.cx} cz={p.cz} w={p.w} d={p.d} chairSide={i === 0 ? 1 : -1} />;
+        return (
+          <group key={i}>
+            <DeskBank cx={p.cx} cz={p.cz} w={p.w} d={p.d} chairSide={i === 0 ? 1 : -1} />
+            {/* holo project board hovering over the bank */}
+            <mesh material={MAT.holo} position={[p.cx, 1.95, p.cz]}>
+              <planeGeometry args={[p.w * 0.7, 0.5]} />
+            </mesh>
+            <mesh material={MAT.neonCyan} position={[p.cx, 2.22, p.cz]}>
+              <boxGeometry args={[p.w * 0.7, 0.015, 0.015]} />
+            </mesh>
+          </group>
+        );
       })}
       {/* shelving along the north wall + a soft partition */}
       <Shelf position={[u(b.x) + 1.6, 0, u(b.y) + 0.62]} width={2.2} />
@@ -567,6 +959,15 @@ function MeetingArea({ sim }: { sim: LabSim }) {
             <MeetingTable cx={p.cx} cz={p.cz} w={p.w} d={p.d} />
             <TableProps position={[p.cx - 0.5, 0.775, p.cz + 0.15]} rotationY={0.4} />
             <TableProps position={[p.cx + 0.55, 0.775, p.cz - 0.12]} rotationY={Math.PI - 0.3} />
+            {/* halo ring floating over each pod — the purple accent
+                marks the meeting zone's shifted atmosphere */}
+            <mesh
+              material={MAT.holoPurple}
+              rotation-x={Math.PI / 2}
+              position={[p.cx, 2.45, p.cz]}
+            >
+              <torusGeometry args={[Math.min(p.w, p.d) * 0.42, 0.03, 8, 36]} />
+            </mesh>
           </group>
         );
       })}
@@ -593,10 +994,14 @@ function MeetingArea({ sim }: { sim: LabSim }) {
 function WorldImpl({ sim }: { sim: LabSim }) {
   return (
     <group>
+      <SkyDome />
+      <MetaCity />
       <Exterior />
+      <FloatingOrbs />
       <Floors />
       <Walls sim={sim} />
       <MassingFurniture />
+      <RooftopBillboards sim={sim} />
       <EntranceArea sim={sim} />
       <StaffArea sim={sim} />
       <MeetingArea sim={sim} />

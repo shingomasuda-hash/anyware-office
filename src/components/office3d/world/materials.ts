@@ -87,6 +87,7 @@ export const MAT = {
   neonCyan: basic("#3ec9f5", { toneMapped: false }),
   neonMint: basic("#46e0b4", { toneMapped: false }),
   neonPurple: basic("#a88cff", { toneMapped: false }),
+  neonMagenta: basic("#f26bd8", { toneMapped: false }),
   neonWhite: basic("#dff2ff", { toneMapped: false }),
   holo: basic("#5fc9f7", {
     transparent: true,
@@ -94,6 +95,16 @@ export const MAT = {
     side: THREE.DoubleSide,
     toneMapped: false,
   }),
+  holoPurple: basic("#c39df5", {
+    transparent: true,
+    opacity: 0.22,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+  }),
+  orbCyan: basic("#7fdcff", { transparent: true, opacity: 0.85, toneMapped: false }),
+  orbMint: basic("#7deccb", { transparent: true, opacity: 0.85, toneMapped: false }),
+  orbPurple: basic("#c0a6ff", { transparent: true, opacity: 0.85, toneMapped: false }),
+  orbMagenta: basic("#f78ade", { transparent: true, opacity: 0.85, toneMapped: false }),
 
   // plants
   pot: std({ color: "#d7dce2", roughness: 0.55 }),

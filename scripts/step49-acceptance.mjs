@@ -263,7 +263,10 @@ try {
   // perf stats (software-rendered floor; calls/tris are env-independent)
   const stats = await A.evaluate(() => window.__officeLab?.stats() ?? null);
   console.log(`INFO lab stats: ${JSON.stringify(stats)}`);
-  record("draw calls within budget (< 900)", stats && stats.calls < 900, `calls=${stats?.calls}`);
+  // Budget revised 900 → 1000 for the STEP 4.9.1 metaverse world layer
+  // (city skyline, portal gate, holo set-pieces). Triangle budget and
+  // the adaptive-DPR guard are unchanged.
+  record("draw calls within budget (< 1000)", stats && stats.calls < 1000, `calls=${stats?.calls}`);
   record("triangles within budget (< 400k)", stats && stats.triangles < 400000, `tris=${stats?.triangles}`);
   record("DPR capped (<= 2)", stats && stats.dpr <= 2, `dpr=${stats?.dpr}`);
 
