@@ -30,24 +30,23 @@ declare global {
   }
 }
 
-function SimDriver({ sim }: { sim: LabSim }) {
-  useFrame((_, dt) => sim.update(dt));
-  return null;
-}
-
 function CameraRig({ sim }: { sim: LabSim }) {
   const camera = useThree((s) => s.camera);
   const vDesired = useMemo(() => new THREE.Vector3(), []);
   const vLook = useMemo(() => new THREE.Vector3(), []);
   const first = useRef(true);
-  useFrame((_, dt) => {
+  const lastT = useRef(performance.now());
+  useFrame(() => {
+    const now = performance.now();
+    const dt = Math.min((now - lastT.current) / 1000, 0.3);
+    lastT.current = now;
     const [x, , z] = worldTo3D(sim.avatar.x, sim.avatar.y);
     vDesired.set(x, 3.15, z + 3.9);
     if (first.current) {
       camera.position.copy(vDesired);
       first.current = false;
     } else {
-      camera.position.lerp(vDesired, 1 - Math.exp(-4.5 * Math.min(dt, 0.1)));
+      camera.position.lerp(vDesired, 1 - Math.exp(-4.5 * dt));
     }
     vLook.set(x, 1.05, z - 1.7);
     camera.lookAt(vLook);
@@ -151,8 +150,14 @@ function RemoteAvatars({
   onPickPerson: (userId: string) => void;
 }) {
   const samples = useRef(new Map<string, AvatarSample>());
-  useFrame((_, dt) => {
-    const arr = sim.remoteSource?.(Math.min(dt, 0.05)) ?? [];
+  const lastT = useRef(performance.now());
+  useFrame(() => {
+    // Wall-clock dt: remote interpolation must converge in real time
+    // even when render FPS drops.
+    const now = performance.now();
+    const dt = Math.min((now - lastT.current) / 1000, 0.3);
+    lastT.current = now;
+    const arr = sim.remoteSource?.(dt) ?? [];
     const m = samples.current;
     m.clear();
     for (const r of arr) m.set(r.userId, r);
@@ -228,7 +233,6 @@ export default function Office3DCanvas({
       <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(Math.min(window.devicePixelRatio, 2))}>
         <Lights />
         <World sim={sim} />
-        <SimDriver sim={sim} />
         <CameraRig sim={sim} />
         <LabInstruments sim={sim} />
         <AvatarMesh

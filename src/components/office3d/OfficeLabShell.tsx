@@ -115,6 +115,25 @@ export default function OfficeLabShell() {
     };
   }, [sim]);
 
+  // Fixed-timestep simulation on the wall clock — movement speed must
+  // not depend on render FPS (weak GPUs render slower; they must not
+  // WALK slower). Sub-steps stay ≤50ms so collision behaves exactly
+  // like the 2D engine.
+  useEffect(() => {
+    let last = performance.now();
+    const id = window.setInterval(() => {
+      const now = performance.now();
+      let elapsed = Math.min((now - last) / 1000, 0.3);
+      last = now;
+      while (elapsed > 0) {
+        const step = Math.min(elapsed, 0.05);
+        sim.update(step);
+        elapsed -= step;
+      }
+    }, 16);
+    return () => window.clearInterval(id);
+  }, [sim]);
+
   const overlayOpen = cardUserId !== null || editorOpen;
   useEffect(() => {
     sim.setInputEnabled(!overlayOpen);
