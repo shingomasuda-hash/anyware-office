@@ -321,7 +321,7 @@ export default function OfficeLabShell() {
         ) : null}
 
         <OfficeHUD area={currentArea} variant="lab" />
-        <MiniMap gameRef={gameRef} currentArea={currentArea} variant="lab" />
+        <MiniMap gameRef={gameRef} currentArea={currentArea} variant="campus" />
         <RealtimeHUD
           realtime={realtime}
           onSelectPerson={handleSelectPerson}

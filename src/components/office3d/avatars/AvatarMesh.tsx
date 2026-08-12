@@ -11,7 +11,7 @@ import {
 } from "@/lib/identity/identity";
 import type { Direction } from "@/types/office";
 import { MAT } from "../world/materials";
-import { worldTo3D } from "../world/scale";
+import { campusYaw, worldTo3D } from "../world/scale";
 
 // Avatar V2 (STEP 4.9.2 §14): stylized metaverse human, ~1.7m.
 // Segmented limbs (thigh/calf, upper arm/forearm), shoulders, hips,
@@ -25,13 +25,6 @@ export interface AvatarSample {
   direction: Direction;
   moving: boolean;
 }
-
-const YAW: Record<Direction, number> = {
-  down: 0,
-  right: Math.PI / 2,
-  up: Math.PI,
-  left: -Math.PI / 2,
-};
 
 function shade(hex: string, f: number): string {
   const n = parseInt(hex.slice(1), 16);
@@ -157,8 +150,9 @@ export default function AvatarMesh({
     const [x, , z] = worldTo3D(s.x, s.y);
     g.position.set(x, 0, z);
 
-    // shortest-path yaw smoothing
-    const targetYaw = YAW[s.direction];
+    // shortest-path yaw smoothing (facing carried through the campus
+    // transform, so a walker faces the way they walk in every building)
+    const targetYaw = campusYaw(s.x, s.y, s.direction);
     let dy = targetYaw - yaw.current;
     while (dy > Math.PI) dy -= Math.PI * 2;
     while (dy < -Math.PI) dy += Math.PI * 2;

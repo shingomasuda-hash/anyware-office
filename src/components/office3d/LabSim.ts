@@ -2,7 +2,9 @@
 
 import type { AvatarIdentity } from "@/lib/identity/identity";
 import { moveWithCollision } from "@/lib/game/collision";
-import { AVATAR_SIZE, findAreaAt, SOLIDS, SPAWN } from "@/lib/game/map";
+import { AVATAR_SIZE, findAreaAt, SOLIDS } from "@/lib/game/map";
+import { campusStretch, canonicalToCampus, LAB_SPAWN } from "./world/campus";
+import { LAB_SPEED_UNITS, LAB_SPRINT } from "./labTuning";
 import type { GameSnapshot } from "@/lib/game/engine";
 import type { RemoteAvatarRender } from "@/lib/realtime/types";
 import type { AreaId, AvatarState, Direction } from "@/types/office";
@@ -13,12 +15,16 @@ import type { AreaId, AvatarState, Direction } from "@/types/office";
 // The public surface mirrors OfficeGame so the STEP 3/4 hooks
 // (useOfficeRealtime, MiniMap, MobileJoystick) work unchanged.
 
-// The 3D hall renders each map unit 3x larger than the 2D office, so
-// the same unit speed would read as a 20 m/s sprint. Walking pace is
-// tuned in METRES here; positions stay in world units, so realtime
-// stays compatible with 2D clients.
-const SPEED = 150; // world units / second (~11 m/s in the enlarged hall)
+// Pace is tuned in METRES across the campus, not in canonical units:
+// the campus transform stretches the canonical corridor into the whole
+// outdoor world, so one canonical unit is a short step indoors and a
+// long one on the plaza. Dividing by the local stretch keeps walking
+// speed constant in the world the player actually sees, while the
+// POSITION that gets broadcast stays canonical and 2D-compatible.
 const MAX_DT = 0.05;
+/** clamp so a near-singular patch can never launch or freeze the walk */
+const STRETCH_MIN = 0.25;
+const STRETCH_MAX = 14;
 /** see updateArea() note — tighter than the shared 2D box. */
 const LAB_AVATAR_SIZE = Math.round(AVATAR_SIZE * 0.55);
 const JOYSTICK_DEADZONE = 0.12;
@@ -28,6 +34,8 @@ const JOYSTICK_DEADZONE = 0.12;
 // k = number of 90° clockwise rotations applied to the screen vector,
 // derived from the facing the camera is parked behind.
 const DIR_K: Record<Direction, number> = { up: 0, right: 1, down: 2, left: 3 };
+
+const SPRINT_CODES = new Set(["ShiftLeft", "ShiftRight"]);
 
 const MOVE_CODES = new Set([
   "ArrowUp",
@@ -52,8 +60,8 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export class LabSim {
   avatar: AvatarState = {
-    x: SPAWN.x,
-    y: SPAWN.y,
+    x: LAB_SPAWN.x,
+    y: LAB_SPAWN.y,
     direction: "up",
     moving: false,
   };
@@ -64,8 +72,9 @@ export class LabSim {
   private pointerY = 0;
   private latchedK = 0;
   private wasActive = false;
+  private sprinting = false;
   private inputEnabled = true;
-  private currentArea: AreaId | null = findAreaAt(SPAWN);
+  private currentArea: AreaId | null = findAreaAt(LAB_SPAWN);
   private localIdentity: AvatarIdentity | null = null;
   private attached = false;
 
@@ -107,6 +116,7 @@ export class LabSim {
     this.inputEnabled = enabled;
     if (!enabled) {
       this.pressed.clear();
+      this.sprinting = false;
       this.joyX = 0;
       this.joyY = 0;
       this.pointerX = 0;
@@ -131,6 +141,39 @@ export class LabSim {
     this.updateArea();
   }
 
+  /**
+   * Dev/test only: walk a virtual body from A toward B through the
+   * REAL collision data, without touching the player. Lets the M1
+   * acceptance prove "this entrance opening passes" and "this exterior
+   * wall blocks" against the same rects the game uses.
+   */
+  probePath(ax: number, ay: number, bx: number, by: number) {
+    const body = { x: ax, y: ay };
+    const step = 3;
+    for (let i = 0; i < 4000; i++) {
+      const dx = bx - body.x;
+      const dy = by - body.y;
+      const len = Math.hypot(dx, dy);
+      if (len < step) break;
+      const next = moveWithCollision(
+        body,
+        (dx / len) * step,
+        (dy / len) * step,
+        LAB_AVATAR_SIZE,
+        SOLIDS,
+      );
+      if (Math.hypot(next.x - body.x, next.y - body.y) < 0.05) break;
+      body.x = next.x;
+      body.y = next.y;
+    }
+    return {
+      x: body.x,
+      y: body.y,
+      reached: Math.hypot(bx - body.x, by - body.y) < 24,
+      area: findAreaAt(body),
+    };
+  }
+
   getSnapshot(): GameSnapshot {
     return {
       x: Math.round(this.avatar.x),
@@ -150,6 +193,10 @@ export class LabSim {
   }
 
   private handleKeyDown = (e: KeyboardEvent) => {
+    if (SPRINT_CODES.has(e.code)) {
+      if (this.inputEnabled && !isTypingTarget(e.target)) this.sprinting = true;
+      return;
+    }
     if (!MOVE_CODES.has(e.code)) return;
     if (!this.inputEnabled || isTypingTarget(e.target)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -158,11 +205,13 @@ export class LabSim {
   };
 
   private handleKeyUp = (e: KeyboardEvent) => {
+    if (SPRINT_CODES.has(e.code)) this.sprinting = false;
     this.pressed.delete(e.code);
   };
 
   private handleBlur = () => {
     this.pressed.clear();
+    this.sprinting = false;
   };
 
   /** Raw input in SCREEN space (up = away from camera). */
@@ -228,10 +277,27 @@ export class LabSim {
       this.avatar.direction = v.y >= 0 ? "down" : "up";
     }
 
+    // Campus metres per second -> canonical units per second. The
+    // stretch changes quickly as you step out of a building, so the
+    // first estimate is corrected against the campus distance the step
+    // would ACTUALLY cover; otherwise leaving a doorway reads as a
+    // lurch even though the position itself is continuous.
+    const want = LAB_SPEED_UNITS * (this.sprinting ? LAB_SPRINT : 1) * dt;
+    const s0 = campusStretch(this.avatar.x, this.avatar.y, v.x, v.y);
+    const lo = want / STRETCH_MAX;
+    const hi = want / STRETCH_MIN;
+    let step = Math.min(hi, Math.max(lo, want / s0));
+    const here = canonicalToCampus(this.avatar.x, this.avatar.y);
+    for (let i = 0; i < 3; i++) {
+      const trial = canonicalToCampus(this.avatar.x + v.x * step, this.avatar.y + v.y * step);
+      const covered = Math.hypot(trial.x - here.x, trial.y - here.y);
+      if (covered < 1e-5) break;
+      step = Math.min(hi, Math.max(lo, step * (want / covered)));
+    }
     const next = moveWithCollision(
       this.avatar,
-      v.x * SPEED * dt,
-      v.y * SPEED * dt,
+      v.x * step,
+      v.y * step,
       LAB_AVATAR_SIZE,
       SOLIDS,
     );

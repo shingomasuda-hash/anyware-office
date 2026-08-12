@@ -2,19 +2,26 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, PerformanceMonitor } from "@react-three/drei";
+import { PerformanceMonitor } from "@react-three/drei";
 import * as THREE from "three";
 import { buildIdentity, type AvatarIdentity } from "@/lib/identity/identity";
 import type { RosterEntry } from "@/lib/realtime/types";
 import type { CurrentUser } from "@/lib/auth/types";
 import type { EffectiveStatus } from "@/lib/identity/identity";
-import type { AreaId, Direction } from "@/types/office";
+import type { AreaId } from "@/types/office";
 import type { LabSim } from "./LabSim";
 import AvatarMesh, { type AvatarSample } from "./avatars/AvatarMesh";
-import { World } from "./world/World";
-import { u, WORLD_SCALE_RATIO, WORLD_UNIT_TO_METERS, worldTo3D } from "./world/scale";
-import { AREAS, WALLS } from "@/lib/game/map";
-import { ROOM_THEMES } from "./world/rooms";
+import { CampusWorld } from "./world/CampusWorld";
+import { campusYaw, u, WORLD_UNIT_TO_METERS, worldTo3D } from "./world/scale";
+import { DOORWAYS, WALLS } from "@/lib/game/map";
+import {
+  BUILDINGS,
+  campusDirToCanonical,
+  canonicalToCampus,
+  LAB_SPAWN,
+  PLAZA_CENTER,
+} from "./world/campus";
+import { ROOM_THEMES } from "./world/themes";
 
 const SKY = "#e9e4f5";
 
@@ -29,28 +36,65 @@ declare global {
         dpr: number;
         camera: [number, number, number];
       };
+      /** canonical -> campus units, the exact function the world uses */
+      campus: (x: number, y: number) => { x: number; y: number };
+      /** campus plan: footprints, doors, heights */
+      buildings: () => Array<{
+        id: AreaId;
+        cx: number;
+        cy: number;
+        w: number;
+        h: number;
+        phi: number;
+        height: number;
+        doorX: number;
+        doorY: number;
+      }>;
+      /** remote avatars as the renderer sees them, canonical units */
+      remotes: () => Array<{ userId: string; x: number; y: number }>;
+      /** walk a probe body through the real collision data */
+      probe: (
+        ax: number,
+        ay: number,
+        bx: number,
+        by: number,
+      ) => { x: number; y: number; reached: boolean; area: AreaId | null };
+      /** dev/test only: park the camera for a survey shot, null resumes */
+      setCamera: (
+        pos: [number, number, number] | null,
+        look: [number, number, number] | null,
+      ) => void;
     };
   }
 }
 
-/** Facing vector per 4-way direction (world units: +y is south). */
-const DIR_VEC: Record<Direction, [number, number]> = {
-  up: [0, -1],
-  down: [0, 1],
-  left: [-1, 0],
-  right: [1, 0],
-};
+interface Framing {
+  y: number;
+  dist: number;
+  look: number;
+}
 
 /**
- * Per-district framing (§19). ENTRANCE opens up to show the arrival
- * plaza; MEETING pulls in so you feel inside the pavilion; the rest
- * keep the campus default. Values are eased, never snapped.
+ * Two camera modes (§9). Outdoors the boom lifts and pulls back so the
+ * campus, its silhouettes and the sky are in shot; indoors it drops to
+ * the room framing already tuned for these interiors. The switch is
+ * eased over ~0.6 s, never snapped.
  */
-const AREA_CAM: Partial<Record<AreaId, { y: number; dist: number; look: number }>> = {
+const EXTERIOR: Framing = { y: 10.4, dist: 14.6, look: 5.2 };
+const INTERIOR_DEFAULT: Framing = { y: 6.8, dist: 8.6, look: 3.4 };
+const AREA_CAM: Partial<Record<AreaId, Framing>> = {
   ENTRANCE: { y: 8.2, dist: 10.4, look: 4.2 },
   STAFF: { y: 6.6, dist: 8.4, look: 3.3 },
   MEETING: { y: 5.9, dist: 7.4, look: 2.9 },
 };
+
+/**
+ * Dev/test camera override. The chase rig owns the camera every frame,
+ * so the acceptance harness needs a documented way to park it for a
+ * survey shot. Never set outside development.
+ */
+type DevCam = { pos: [number, number, number]; look: [number, number, number] };
+const devCamRef: { current: DevCam | null } = { current: null };
 
 const MIN_BOOM = 3.4; // metres — closest the camera may tuck in
 const CAM_PAD = 0.7; // metres of clearance kept from any wall face
@@ -64,8 +108,8 @@ const CAM_PAD = 0.7; // metres of clearance kept from any wall face
 function cameraBoom(
   ax: number,
   ay: number,
-  ox: number,
-  oz: number,
+  dx: number,
+  dy: number,
   maxDist: number,
 ): number {
   const padU = CAM_PAD / WORLD_UNIT_TO_METERS;
@@ -77,9 +121,6 @@ function cameraBoom(
     const minY = r.y - padU;
     const maxY = r.y + r.h + padU;
     if (ax >= minX && ax <= maxX && ay >= minY && ay <= maxY) continue;
-    // direction in world units per metre of boom
-    const dx = (ox * 1) / WORLD_UNIT_TO_METERS;
-    const dy = (oz * 1) / WORLD_UNIT_TO_METERS;
     let t0 = 0;
     let t1 = maxDist;
     let ok = true;
@@ -121,47 +162,49 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
   const vLook = useMemo(() => new THREE.Vector3(), []);
   const first = useRef(true);
   const lastT = useRef(performance.now());
-  const camYaw = useRef(0); // 0 = camera south of avatar, looking north
+  const camYaw = useRef(0);
   // Mobile rides a little higher and further back so the tall viewport
   // shows the world's depth instead of a giant avatar (§23).
-  const baseY = isMobile ? 8.2 : 6.8;
-  const baseDist = isMobile ? 10.5 : 8.6;
-  const baseLook = isMobile ? 4.6 : 3.4;
-  // eased per-district framing
-  const framing = useRef({ y: baseY, dist: baseDist, look: baseLook });
+  const mobileScale = isMobile ? 1.22 : 1;
+  const framing = useRef({ ...EXTERIOR });
   useFrame(() => {
+    if (devCamRef.current) {
+      const { pos, look } = devCamRef.current;
+      camera.position.set(pos[0], pos[1], pos[2]);
+      camera.lookAt(look[0], look[1], look[2]);
+      return;
+    }
     const now = performance.now();
     const dt = Math.min((now - lastT.current) / 1000, 0.3);
     lastT.current = now;
-    const [fx, fz] = DIR_VEC[sim.avatar.direction];
-    // camera offset direction is opposite the facing vector
-    const targetYaw = Math.atan2(-fx, -fz);
+    const ax = sim.avatar.x;
+    const ay = sim.avatar.y;
+    // Facing is read in CAMPUS space: buildings are turned to face the
+    // plaza, so canonical "up" points somewhere different in each one.
+    const targetYaw = campusYaw(ax, ay, sim.avatar.direction) + Math.PI;
     let dy = targetYaw - camYaw.current;
     while (dy > Math.PI) dy -= Math.PI * 2;
     while (dy < -Math.PI) dy += Math.PI * 2;
     camYaw.current += dy * (first.current ? 1 : 1 - Math.exp(-3.2 * dt));
     const ox = Math.sin(camYaw.current);
     const oz = Math.cos(camYaw.current);
-    // ease toward this district's framing
+    // exterior ↔ interior framing (§9)
     const area = sim.getSnapshot().area;
-    const want = (area && AREA_CAM[area]) || null;
-    const mobileScale = isMobile ? 1.22 : 1;
-    const tY = want ? want.y * mobileScale : baseY;
-    const tD = want ? want.dist * mobileScale : baseDist;
-    const tL = want ? want.look * mobileScale : baseLook;
+    const want = area ? AREA_CAM[area] ?? INTERIOR_DEFAULT : EXTERIOR;
     const k = first.current ? 1 : 1 - Math.exp(-1.6 * dt);
-    framing.current.y += (tY - framing.current.y) * k;
-    framing.current.dist += (tD - framing.current.dist) * k;
-    framing.current.look += (tL - framing.current.look) * k;
+    framing.current.y += (want.y * mobileScale - framing.current.y) * k;
+    framing.current.dist += (want.dist * mobileScale - framing.current.dist) * k;
+    framing.current.look += (want.look * mobileScale - framing.current.look) * k;
     const camY = framing.current.y;
     const camDist = framing.current.dist;
     const lookAhead = framing.current.look;
-    // Spring arm: shorten the boom so the camera never passes through a
-    // wall. Standing in a room and turning around used to push the
-    // camera outside, which made the whole wall vanish; now the camera
-    // simply pulls in and the room stays intact.
-    const dist = cameraBoom(sim.avatar.x, sim.avatar.y, ox, oz, camDist);
-    const [x, , z] = worldTo3D(sim.avatar.x, sim.avatar.y);
+    // Spring arm. The boom is measured in campus metres, but the walls
+    // it has to clear live in canonical units, so the direction is
+    // pushed back through the local linearisation of the transform —
+    // exact where it matters (inside a building the transform is rigid).
+    const back = campusDirToCanonical(ax, ay, ox / WORLD_UNIT_TO_METERS, oz / WORLD_UNIT_TO_METERS);
+    const dist = cameraBoom(ax, ay, back.x, back.y, camDist);
+    const [x, , z] = worldTo3D(ax, ay);
     // When the boom is compressed by a wall the camera RISES and looks
     // further down, so being cornered turns into a clean look into the
     // room instead of a close-up of the wall behind you.
@@ -186,51 +229,43 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
 
 function Lights() {
   const light = useRef<THREE.DirectionalLight>(null);
+  const plaza = useMemo(() => canonicalToCampus(PLAZA_CENTER.x, PLAZA_CENTER.y), []);
   useEffect(() => {
     const l = light.current;
     if (!l) return;
-    l.target.position.set(u(880), 0, u(600));
+    l.target.position.set(u(plaza.x), 0, u(plaza.y));
     l.target.updateMatrixWorld();
-  }, []);
+  }, [plaza]);
   return (
     <>
-      <hemisphereLight args={["#edf5fc", "#dde2e8", 1.0]} />
+      <hemisphereLight args={["#edf5fc", "#dde2e8", 1.05]} />
+      {/* one sun for the whole campus — open air, mid-afternoon */}
       <directionalLight
         ref={light}
-        position={[u(1600), 90, u(-320)]}
-        intensity={1.45}
+        position={[u(plaza.x) + 130, 150, u(plaza.y) - 190]}
+        intensity={1.5}
         color="#fff6e8"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
-        shadow-camera-left={-90}
-        shadow-camera-right={90}
-        shadow-camera-top={84}
-        shadow-camera-bottom={-84}
-        shadow-camera-near={10}
-        shadow-camera-far={270}
-        shadow-bias={-0.0012}
+        shadow-camera-left={-140}
+        shadow-camera-right={140}
+        shadow-camera-top={140}
+        shadow-camera-bottom={-140}
+        shadow-camera-near={20}
+        shadow-camera-far={460}
+        shadow-bias={-0.0014}
       />
-      <ambientLight intensity={0.1} color="#f2f7fd" />
-      {/* per-area accent fills — a hint of colored light gives each
-          room its own atmosphere without going neon-dark (§3). The
-          entrance key light is warm architectural white; cyan there is
-          reserved for information surfaces (§11). */}
-      <pointLight position={[u(788), 5.2, u(1008)]} intensity={95} color="#fff3e4" distance={27} decay={2} />
-      <pointLight position={[u(888), 6.2, u(992)]} intensity={55} color="#ecf4fc" distance={18} decay={2} />
-      {/* one key light per district, tinted by its theme (§room world
-          building) so each room reads with its own atmosphere */}
-      {AREAS.filter((a) => a.id !== "ENTRANCE").map((a) => (
+      <ambientLight intensity={0.12} color="#f2f7fd" />
+      {/* one key light per building interior, tinted by its theme, so a
+          lit room reads from outside through the entrance opening */}
+      {BUILDINGS.map((b) => (
         <pointLight
-          key={a.id}
-          position={[
-            u(a.bounds.x + a.bounds.w / 2),
-            5.2,
-            u(a.bounds.y + a.bounds.h / 2),
-          ]}
-          intensity={95}
-          color={ROOM_THEMES[a.id].light}
-          distance={34}
+          key={b.id}
+          position={[u(b.center.x), 4.6, u(b.center.y)]}
+          intensity={130}
+          color={ROOM_THEMES[b.id].light}
+          distance={30}
           decay={2}
         />
       ))}
@@ -307,11 +342,43 @@ function LabInstruments({ sim }: { sim: LabSim }) {
         dpr: gl.getPixelRatio(),
         camera: [camera.position.x, camera.position.y, camera.position.z],
       }),
+      campus: (x, y) => canonicalToCampus(x, y),
+      buildings: () =>
+        BUILDINGS.map((b) => {
+          const door = DOORWAYS.find(
+            (d) =>
+              d.rect.x >= b.bounds.x - 1 &&
+              d.rect.x + d.rect.w <= b.bounds.x + b.bounds.w + 1 &&
+              d.rect.y >= b.bounds.y - 1 &&
+              d.rect.y + d.rect.h <= b.bounds.y + b.bounds.h + 1,
+          );
+          return {
+            id: b.id,
+            cx: b.center.x,
+            cy: b.center.y,
+            w: b.size.w,
+            h: b.size.h,
+            phi: b.phi,
+            height: b.height,
+            doorX: door ? door.rect.x + door.rect.w / 2 : b.canon.x,
+            doorY: door ? door.rect.y + door.rect.h / 2 : b.canon.y,
+          };
+        }),
+      remotes: () =>
+        (sim.remoteSource?.(0) ?? []).map((r) => ({
+          userId: r.userId,
+          x: r.x,
+          y: r.y,
+        })),
+      probe: (ax, ay, bx, by) => sim.probePath(ax, ay, bx, by),
+      setCamera: (pos, look) => {
+        devCamRef.current = pos && look ? { pos, look } : null;
+      },
     };
     return () => {
       delete window.__officeLab;
     };
-  }, [gl, camera]);
+  }, [gl, camera, sim]);
 
   return null;
 }
@@ -379,6 +446,7 @@ export default function Office3DCanvas({
   onReady: () => void;
   isMobile?: boolean;
 }) {
+  const spawn = useMemo(() => canonicalToCampus(LAB_SPAWN.x, LAB_SPAWN.y), []);
   const [dpr, setDpr] = useState<number>(() =>
     Math.min(typeof window !== "undefined" ? window.devicePixelRatio : 1, 2),
   );
@@ -399,30 +467,22 @@ export default function Office3DCanvas({
     <Canvas
       shadows
       dpr={dpr}
-      camera={{ fov: isMobile ? 56 : 50, near: 0.3, far: 420, position: [u(880), 11, u(1280)] }}
+      camera={{
+        fov: isMobile ? 56 : 50,
+        near: 0.3,
+        far: 900,
+        position: [u(spawn.x), 16, u(spawn.y) + 22],
+      }}
       gl={{ antialias: true, powerPreference: "high-performance" }}
       style={{ touchAction: "none" }}
       onCreated={({ scene }) => {
         scene.background = new THREE.Color(SKY);
-        scene.fog = new THREE.Fog(SKY, 126, 375);
+        scene.fog = new THREE.Fog(SKY, 200, 470);
       }}
     >
       <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(Math.min(window.devicePixelRatio, 2))}>
         <Lights />
-        {/* static contact-shadow bake for the arrival plaza: grounds
-            the reception, core pedestal and furniture (§10). far stays
-            below the floating ceiling so panels don't darken the floor;
-            frames=1 → rendered once, zero per-frame cost. */}
-        <ContactShadows
-          position={[u(880), 0.05, u(992)]}
-          scale={13 * WORLD_SCALE_RATIO}
-          far={7.2}
-          blur={2.4}
-          opacity={0.38}
-          resolution={512}
-          frames={1}
-        />
-        <World sim={sim} />
+        <CampusWorld sim={sim} />
         <CameraRig sim={sim} isMobile={isMobile} />
         <LabInstruments sim={sim} />
         <AvatarMesh

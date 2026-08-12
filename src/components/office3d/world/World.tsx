@@ -37,7 +37,7 @@ import {
 } from "./effects";
 import { AreaGateways } from "./gateways";
 import { CentralSpine } from "./spine";
-import { RoomIdentity, ROOM_THEMES, useRoomFloor } from "./rooms";
+import { RoomIdentity, useRoomFloor } from "./rooms";
 import {
   ArrivalPlatform,
   CurvedCorners,

@@ -1,4 +1,6 @@
 import { WORLD } from "@/lib/game/map";
+import type { Direction } from "@/types/office";
+import { campusJacobian, canonicalToCampus } from "./campus";
 
 // STEP 4.9 world coordinate contract.
 //
@@ -35,8 +37,39 @@ export const WORLD_M = {
 export const WALL_HEIGHT_M = 5.4;
 export const AVATAR_HEIGHT_M = 1.7;
 
+/**
+ * Canonical world units -> three.js metres, THROUGH the campus
+ * transform. Everything drawn in the lab goes through this one door:
+ * the local avatar, remote avatars, the camera target and the
+ * world→screen projector. One transform for all of them is what makes
+ * a doorway crossing continuous for everybody at once.
+ */
 export function worldTo3D(x: number, y: number): [number, number, number] {
-  return [x * WORLD_UNIT_TO_METERS, 0, y * WORLD_UNIT_TO_METERS];
+  const c = canonicalToCampus(x, y);
+  return [c.x * WORLD_UNIT_TO_METERS, 0, c.y * WORLD_UNIT_TO_METERS];
+}
+
+const DIR_VEC: Record<Direction, [number, number]> = {
+  up: [0, -1],
+  down: [0, 1],
+  left: [-1, 0],
+  right: [1, 0],
+};
+
+/**
+ * Yaw (three.js Y rotation) for a canonical facing at a canonical
+ * position. Buildings are turned to face the plaza, so "north" inside
+ * STAFF is not "north" inside MEETING — the facing has to be carried
+ * through the transform too, or avatars would face the wrong way in
+ * every rotated building.
+ */
+export function campusYaw(x: number, y: number, direction: Direction): number {
+  const [dx, dy] = DIR_VEC[direction];
+  const j = campusJacobian(x, y);
+  const cx = j.xx * dx + j.xy * dy;
+  const cy = j.yx * dx + j.yy * dy;
+  if (Math.abs(cx) < 1e-6 && Math.abs(cy) < 1e-6) return Math.atan2(dx, dy);
+  return Math.atan2(cx, cy);
 }
 
 export function u(v: number): number {

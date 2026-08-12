@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "reachability": "node scripts/reachability.ts",
-    "test:step25": "node scripts/step25-acceptance.mjs"
+    "test:step25": "node scripts/step25-acceptance.mjs",
+    "campus:check": "node --experimental-loader ./scripts/alias-hooks.mjs scripts/campus-check.ts",
+    "test:campus-m1": "node scripts/campus-m1-acceptance.mjs",
+    "campus:shots": "node scripts/campus-shots.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",
