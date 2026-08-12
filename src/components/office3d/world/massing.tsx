@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { FURNITURE, WALLS } from "@/lib/game/map";
 import type { Rect } from "@/types/office";
@@ -10,6 +10,8 @@ import { type Building, BUILDINGS } from "./campus";
 import { MAT, makeTextTexture } from "./materials";
 import { ROOM_THEMES } from "./themes";
 import { fu, u } from "./scale";
+import { LUX } from "./lux";
+import { LUXURY_AREAS, LuxuryInterior } from "./interiors";
 
 /**
  * M1 WHITE MASSING MODEL (§3).
@@ -22,8 +24,6 @@ import { fu, u } from "./scale";
  * the room centre at the origin and +Z pointing out of the entrance,
  * so a massing reads the same wherever its building sits on the ring.
  */
-
-const SHELL = 4.6; // default enclosure height, metres
 
 /** Canonical rects belonging to one room, in local metres. */
 function localRects(b: Building, rects: readonly Rect[], furniture = false) {
@@ -187,6 +187,52 @@ function InteriorMassing({ b }: { b: Building }) {
   );
 }
 
+/**
+ * Interior detail gate. A luxury interior is worth ~60-80 draw calls,
+ * so only the building you are in or standing in front of gets one;
+ * everything else falls back to the M1 massing, and distant buildings
+ * show nothing inside at all. Visibility is flipped on refs rather
+ * than by re-rendering, so crossing a threshold costs nothing.
+ */
+const richDistance: Record<string, number> = {};
+
+function AreaInterior({ b, sim }: { b: Building; sim: LabSim }) {
+  const camera = useThree((s) => s.camera);
+  const full = useRef<THREE.Group>(null);
+  const lite = useRef<THREE.Group>(null);
+  const centre = useMemo(
+    () => new THREE.Vector3(u(b.center.x), 0, u(b.center.y)),
+    [b],
+  );
+  const rich = LUXURY_AREAS.has(b.id);
+  useFrame(() => {
+    const inside = sim.getSnapshot().area === b.id;
+    const d = camera.position.distanceTo(centre);
+    if (rich) richDistance[b.id] = inside ? -1 : d;
+    // Only ONE room is ever drawn at full detail: the one you are in,
+    // or the nearest one you are close enough to be looking into. Two
+    // rich interiors on screen at once is what pushes the frame over
+    // its draw-call budget, and you can only be in one of them.
+    let closest = Infinity;
+    for (const k in richDistance) closest = Math.min(closest, richDistance[k]);
+    const wantFull = rich && (inside || (d < 40 && d <= closest + 0.001));
+    if (full.current) full.current.visible = wantFull;
+    if (lite.current) lite.current.visible = !wantFull && (inside || d < 96);
+  });
+  return (
+    <group>
+      {rich ? (
+        <group ref={full} visible={false}>
+          <LuxuryInterior id={b.id} w={b.size.w} d={b.size.h} />
+        </group>
+      ) : null}
+      <group ref={lite}>
+        <InteriorMassing b={b} />
+      </group>
+    </group>
+  );
+}
+
 /** Entrance marker: canopy + name board, always on the +Z face (§6). */
 function EntranceMark({ b, canopyY }: { b: Building; canopyY: number }) {
   const hd = u(b.size.h) / 2;
@@ -211,8 +257,12 @@ function EntranceMark({ b, canopyY }: { b: Building; canopyY: number }) {
   );
   return (
     <group>
-      {/* canopy over the opening */}
+      {/* canopy over the opening, with the light hidden under it — the
+          threshold reads as a lit room you are about to step into (§7) */}
       <Slab y={canopyY} z={hd + 1.1} w={9.4} h={0.28} d={3.4} mat={MAT.resinWhite} />
+      <mesh material={LUX.coveSoft} position={[0, canopyY - 0.15, hd + 1.1]} rotation-x={Math.PI / 2}>
+        <planeGeometry args={[7.4, 1.5]} />
+      </mesh>
       {[-4.4, 4.4].map((x) => (
         <Slab key={x} x={x} y={canopyY / 2} z={hd + 2.5} w={0.22} h={canopyY} d={0.22} mat={MAT.matteSilver} />
       ))}
@@ -223,9 +273,13 @@ function EntranceMark({ b, canopyY }: { b: Building; canopyY: number }) {
       <mesh material={accent} position={[0, canopyY + 0.16, hd + 0.17]}>
         <boxGeometry args={[6.4, 0.09, 0.06]} />
       </mesh>
-      {/* threshold band on the ground */}
+      {/* threshold band on the ground, plus a soft wash that carries
+          the interior light out onto the approach */}
       <mesh material={accent} rotation-x={-Math.PI / 2} position={[0, 0.05, hd + 1.6]}>
         <planeGeometry args={[7.5, 0.5]} />
+      </mesh>
+      <mesh material={LUX.coveSoft} rotation-x={-Math.PI / 2} position={[0, 0.042, hd + 3.4]}>
+        <planeGeometry args={[8.2, 4.6]} />
       </mesh>
     </group>
   );
@@ -245,8 +299,8 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
     case "gateway":
       return (
         <>
-          <Shell b={b} height={5.0} mat={MAT.wallPaint} />
-          <InteriorMassing b={b} />
+          <Shell b={b} height={6.4} mat={MAT.wallPaint} />
+          <AreaInterior b={b} sim={sim} />
           {[-hw + 1.6, hw - 1.6].map((x) => (
             <Slab key={x} x={x} y={H / 2} z={hd - 2.2} w={2.4} h={H} d={2.4} mat={MAT.wallPaint} />
           ))}
@@ -267,16 +321,16 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
     case "lowCurve":
       return (
         <>
-          <Shell b={b} height={4.4} mat={MAT.wallWarm} />
-          <InteriorMassing b={b} />
+          <Shell b={b} height={5.2} mat={MAT.wallWarm} />
+          <AreaInterior b={b} sim={sim} />
           <Roof b={b} sim={sim}>
-            <Slab y={4.6} w={hw * 2 + 0.8} h={0.4} d={hd * 2 + 0.8} mat={deck} />
+            <Slab y={5.4} w={hw * 2 + 0.8} h={0.4} d={hd * 2 + 0.8} mat={deck} />
             {/* two barrel shells across the width */}
             {[-hd * 0.42, hd * 0.42].map((z) => (
               <mesh
                 key={z}
                 material={roofMat}
-                position={[0, 5.0, z]}
+                position={[0, 5.8, z]}
                 rotation={[0, 0, Math.PI / 2]}
                 castShadow
               >
@@ -294,10 +348,10 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
     case "angled":
       return (
         <>
-          <Shell b={b} height={5.4} mat={MAT.wallPaint} />
-          <InteriorMassing b={b} />
+          <Shell b={b} height={6.2} mat={MAT.wallPaint} />
+          <AreaInterior b={b} sim={sim} />
           <Roof b={b} sim={sim}>
-            <Slab y={5.7} w={hw * 2 + 0.6} h={0.5} d={hd * 2 + 0.6} mat={deck} />
+            <Slab y={6.5} w={hw * 2 + 0.6} h={0.5} d={hd * 2 + 0.6} mat={deck} />
           </Roof>
           {/* tower: leaning slab + crown, the campus landmark */}
           <group position={[hw * 0.32, 0, -hd * 0.28]} rotation-y={0.33}>
@@ -320,7 +374,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={4.8} mat={MAT.wallWarm} />
-          <InteriorMassing b={b} />
+          <AreaInterior b={b} sim={sim} />
           <Roof b={b} sim={sim}>
             <Slab y={7.4} w={hw * 2 + 9.0} h={0.62} d={hd * 2 + 7.0} mat={deck} />
             <Slab y={H - 1.2} w={hw * 1.2} h={2.4} d={hd * 1.0} mat={MAT.wallPaint} />
@@ -348,7 +402,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={1.15} mat={MAT.wallWarm} />
-          <InteriorMassing b={b} />
+          <AreaInterior b={b} sim={sim} />
           <Roof b={b} sim={sim}>
             <Slab y={H - 0.7} w={hw * 2 + 3.6} h={0.45} d={hd * 2 + 3.0} mat={deck} />
             {[-hw * 0.5, 0, hw * 0.5].map((x) => (
@@ -378,7 +432,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={2.6} mat={MAT.wallWarm} />
-          <InteriorMassing b={b} />
+          <AreaInterior b={b} sim={sim} />
           <Roof b={b} sim={sim}>
             {[-1, 0, 1].map((i) => (
               <mesh
@@ -401,7 +455,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={3.4} mat={MAT.wallWarm} />
-          <InteriorMassing b={b} />
+          <AreaInterior b={b} sim={sim} />
           <Roof b={b} sim={sim}>
             {[0, 1, 2].map((i) => (
               <Slab
@@ -424,11 +478,11 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
     case "transparent":
       return (
         <>
-          <Shell b={b} height={5.2} mat={MAT.glassMeeting} />
-          <InteriorMassing b={b} />
+          <Shell b={b} height={5.6} mat={MAT.glassMeeting} />
+          <AreaInterior b={b} sim={sim} />
           <Roof b={b} sim={sim}>
-            <Slab y={5.5} w={hw * 2 + 1.8} h={0.36} d={hd * 2 + 1.8} mat={deck} />
-            <mesh material={MAT.frost} position={[0, 6.6, 0]} castShadow>
+            <Slab y={5.9} w={hw * 2 + 1.8} h={0.36} d={hd * 2 + 1.8} mat={deck} />
+            <mesh material={MAT.frost} position={[0, 7.0, 0]} castShadow>
               <sphereGeometry args={[Math.min(hw, hd) * 0.95, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2.6]} />
             </mesh>
             <Slab y={H - 0.3} w={hw * 0.5} h={0.3} d={hd * 0.5} mat={MAT.matteSilver} />
@@ -441,8 +495,8 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
     case "cantilever":
       return (
         <>
-          <Shell b={b} height={5.0} mat={MAT.wallPaint} />
-          <InteriorMassing b={b} />
+          <Shell b={b} height={6.4} mat={MAT.wallPaint} />
+          <AreaInterior b={b} sim={sim} />
           <Roof b={b} sim={sim}>
             <Slab y={5.3} w={hw * 2 + 0.6} h={0.4} d={hd * 2 + 0.6} mat={deck} />
             <Slab
@@ -467,7 +521,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={2.6} mat={MAT.wallWarm} />
-          <InteriorMassing b={b} />
+          <AreaInterior b={b} sim={sim} />
           <Roof b={b} sim={sim}>
             <Slab y={(H + 2.9) / 2} w={hw * 2 + 1.0} h={H - 2.9} d={hd * 2 + 1.0} mat={MAT.wallPaint} />
             <Slab y={H + 0.25} w={hw * 2 + 1.6} h={0.4} d={hd * 2 + 1.6} mat={deck} />

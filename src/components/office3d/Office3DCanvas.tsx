@@ -16,6 +16,7 @@ import { campusYaw, u, WORLD_UNIT_TO_METERS, worldTo3D } from "./world/scale";
 import { DOORWAYS, WALLS } from "@/lib/game/map";
 import {
   BUILDINGS,
+  BUILDING_BY_ID,
   campusDirToCanonical,
   canonicalToCampus,
   LAB_SPAWN,
@@ -59,6 +60,13 @@ declare global {
         bx: number,
         by: number,
       ) => { x: number; y: number; reached: boolean; area: AreaId | null };
+      /** dev/test only: a building's local metres -> world metres */
+      localToWorld: (
+        id: AreaId,
+        lx: number,
+        ly: number,
+        lz: number,
+      ) => [number, number, number];
       /** dev/test only: park the camera for a survey shot, null resumes */
       setCamera: (
         pos: [number, number, number] | null,
@@ -257,15 +265,17 @@ function Lights() {
         shadow-bias={-0.0014}
       />
       <ambientLight intensity={0.12} color="#f2f7fd" />
-      {/* one key light per building interior, tinted by its theme, so a
-          lit room reads from outside through the entrance opening */}
+      {/* One key light per building interior. It has to hang BELOW the
+          ceiling plates — a light above them leaves every soffit and
+          reveal unlit, which is exactly what makes an interior read as
+          flat cardboard instead of architecture. */}
       {BUILDINGS.map((b) => (
         <pointLight
           key={b.id}
-          position={[u(b.center.x), 4.6, u(b.center.y)]}
-          intensity={130}
+          position={[u(b.center.x), 3.0, u(b.center.y)]}
+          intensity={190}
           color={ROOM_THEMES[b.id].light}
-          distance={30}
+          distance={36}
           decay={2}
         />
       ))}
@@ -371,6 +381,17 @@ function LabInstruments({ sim }: { sim: LabSim }) {
           y: r.y,
         })),
       probe: (ax, ay, bx, by) => sim.probePath(ax, ay, bx, by),
+      localToWorld: (id, lx, ly, lz) => {
+        const b = BUILDING_BY_ID[id];
+        // exactly the transform world/massing.tsx BuildingFrame applies
+        const flip = b.frontSign > 0 ? 0 : Math.PI;
+        const th = -b.phi + flip;
+        return [
+          u(b.center.x) + lx * Math.cos(th) + lz * Math.sin(th),
+          ly,
+          u(b.center.y) - lx * Math.sin(th) + lz * Math.cos(th),
+        ];
+      },
       setCamera: (pos, look) => {
         devCamRef.current = pos && look ? { pos, look } : null;
       },

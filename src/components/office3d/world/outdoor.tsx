@@ -12,6 +12,7 @@ import {
   PLAZA_CENTER,
 } from "./campus";
 import { MAT } from "./materials";
+import { LUX, makeSignage } from "./lux";
 import { u } from "./scale";
 
 /**
@@ -117,7 +118,7 @@ function Backdrop() {
 /** Central Plaza + ring circulation + radial approaches (§6, §7). */
 function Circulation() {
   const c = plazaCentre();
-  const doors = useMemo(entrancePoints, []);
+  const doors = useMemo(() => entrancePoints(), []);
   const ringR = useMemo(() => {
     const rs = doors.map((d) => d.p.distanceTo(c));
     return Math.min(...rs) - 7;
@@ -162,6 +163,13 @@ function Circulation() {
           </mesh>
         );
       })}
+      {/* lit rim: the plaza edge is drawn, not just implied */}
+      <mesh material={LUX.edge} rotation-x={-Math.PI / 2} position={[c.x, 0.034, c.y]} scale={[PLAZA_RX, PLAZA_RZ, 1]}>
+        <ringGeometry args={[0.985, 1.0, 64]} />
+      </mesh>
+      <mesh material={LUX.holoSoft} rotation-x={-Math.PI / 2} position={[c.x, 0.032, c.y]} scale={[PLAZA_RX, PLAZA_RZ, 1]}>
+        <ringGeometry args={[0.62, 0.645, 64]} />
+      </mesh>
       {/* entrance forecourt per building (§6 approach sequence) */}
       {doors.map(({ b, p }) => (
         <mesh
@@ -173,6 +181,98 @@ function Circulation() {
           <circleGeometry args={[Math.max(6, u(b.apron) * 0.09), 24]} />
         </mesh>
       ))}
+    </group>
+  );
+}
+
+/**
+ * Landscape islands and light bollards. These do the quiet work of
+ * making a large paved space feel composed rather than empty: they
+ * break the plaza into approaches, give the eye something at human
+ * height, and mark the ring path after dark.
+ */
+function PlazaLandscape() {
+  const c = plazaCentre();
+  const doors = useMemo(() => entrancePoints(), []);
+  const islands = useMemo(() => {
+    const out: Array<{ x: number; z: number; ang: number; r: number }> = [];
+    for (let i = 0; i < doors.length; i++) {
+      const a = doors[i].p.clone().sub(c);
+      const b = doors[(i + 1) % doors.length].p.clone().sub(c);
+      const mid = a.clone().add(b).multiplyScalar(0.5).normalize();
+      const r = (a.length() + b.length()) / 2;
+      out.push({
+        x: c.x + mid.x * r * 0.66,
+        z: c.y + mid.y * r * 0.66,
+        ang: Math.atan2(mid.x, mid.y),
+        r,
+      });
+    }
+    return out;
+  }, [doors, c]);
+  const bollards = useMemo(() => {
+    const rs = doors.map((d) => d.p.distanceTo(c));
+    const ring = Math.min(...rs) - 7;
+    const out: Array<[number, number]> = [];
+    for (let i = 0; i < 56; i++) {
+      const a = (i / 56) * Math.PI * 2;
+      out.push([c.x + Math.sin(a) * ring, c.y + Math.cos(a) * ring]);
+    }
+    return out;
+  }, [doors, c]);
+  const post = useRef<THREE.InstancedMesh>(null);
+  const cap = useRef<THREE.InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    for (const [mesh, h, w, y] of [
+      [post.current, 0.95, 0.11, 0.475],
+      [cap.current, 0.07, 0.2, 0.98],
+    ] as const) {
+      if (!mesh) continue;
+      bollards.forEach(([bx, bz], i) => {
+        m.compose(new THREE.Vector3(bx, y, bz), q, new THREE.Vector3(w, h, w));
+        mesh.setMatrixAt(i, m);
+      });
+      mesh.count = bollards.length;
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+  }, [bollards]);
+  return (
+    <group>
+      {islands.map((it, i) => (
+        <group key={i} position={[it.x, 0, it.z]} rotation-y={it.ang}>
+          <mesh material={LUX.ceramic} position={[0, 0.24, 0]} castShadow receiveShadow>
+            <boxGeometry args={[7.0, 0.48, 3.2]} />
+          </mesh>
+          <mesh material={LUX.leafDeep} position={[0, 0.5, 0]} rotation-x={-Math.PI / 2}>
+            <planeGeometry args={[6.7, 2.9]} />
+          </mesh>
+          <mesh material={LUX.leaf} position={[0, 0.72, 0]}>
+            <boxGeometry args={[6.2, 0.46, 2.3]} />
+          </mesh>
+          {[-2.1, 2.1].map((tx) => (
+            <group key={tx} position={[tx, 0, 0]}>
+              <mesh material={LUX.trunk} position={[0, 2.0, 0]} castShadow>
+                <cylinderGeometry args={[0.09, 0.14, 3.6, 8]} />
+              </mesh>
+              <mesh material={LUX.leaf} position={[0, 4.3, 0]} castShadow>
+                <sphereGeometry args={[1.7, 12, 9]} />
+              </mesh>
+            </group>
+          ))}
+          {/* a bench: somewhere to be, at human scale */}
+          <mesh material={LUX.wood} position={[0, 0.5, 2.05]} castShadow receiveShadow>
+            <boxGeometry args={[5.0, 0.12, 0.55]} />
+          </mesh>
+        </group>
+      ))}
+      <instancedMesh ref={post} args={[undefined, undefined, bollards.length]} material={LUX.silver}>
+        <boxGeometry />
+      </instancedMesh>
+      <instancedMesh ref={cap} args={[undefined, undefined, bollards.length]} material={LUX.cove}>
+        <boxGeometry />
+      </instancedMesh>
     </group>
   );
 }
@@ -246,21 +346,43 @@ function Perimeter() {
 /** Wayfinding totems where each approach leaves the ring path (§6). */
 function Wayfinding() {
   const c = plazaCentre();
-  const doors = useMemo(entrancePoints, []);
+  const doors = useMemo(() => entrancePoints(), []);
+  const blades = useMemo(
+    () =>
+      doors.map(({ b }) => ({
+        id: b.id,
+        accent: b.accent,
+        mat: makeSignage(b.label, b.subtitle, b.accent),
+      })),
+    [doors],
+  );
   return (
     <group>
-      {doors.map(({ b, p }) => {
+      {doors.map(({ b, p }, i) => {
         const dir = p.clone().sub(c).normalize();
-        const at = p.clone().sub(dir.clone().multiplyScalar(9));
-        const side = new THREE.Vector2(-dir.y, dir.x).multiplyScalar(4.2);
-        const mat = new THREE.MeshBasicMaterial({ color: b.accent, toneMapped: false });
+        const at = p.clone().sub(dir.clone().multiplyScalar(11));
+        const side = new THREE.Vector2(-dir.y, dir.x).multiplyScalar(5.0);
+        const face = Math.atan2(-dir.x, -dir.y);
         return (
-          <group key={b.id} position={[at.x + side.x, 0, at.y + side.y]}>
-            <mesh material={MAT.matteSilver} position={[0, 1.5, 0]} castShadow>
-              <boxGeometry args={[0.22, 3.0, 0.22]} />
+          <group key={b.id} position={[at.x + side.x, 0, at.y + side.y]} rotation-y={face}>
+            {/* a pearl blade with a brushed spine, not a signpost */}
+            <mesh material={LUX.pearl} position={[0, 1.9, 0]} castShadow receiveShadow>
+              <boxGeometry args={[1.5, 3.2, 0.16]} />
             </mesh>
-            <mesh material={mat} position={[0, 2.75, 0]} rotation-y={Math.atan2(dir.x, dir.y)}>
-              <boxGeometry args={[1.9, 0.5, 0.12]} />
+            <mesh material={LUX.silver} position={[0, 1.9, -0.11]}>
+              <boxGeometry args={[0.2, 3.5, 0.1]} />
+            </mesh>
+            <mesh material={blades[i].mat} position={[0, 2.55, 0.09]}>
+              <planeGeometry args={[1.34, 0.34]} />
+            </mesh>
+            <mesh
+              material={new THREE.MeshBasicMaterial({ color: b.accent, toneMapped: false })}
+              position={[0, 0.55, 0.09]}
+            >
+              <boxGeometry args={[1.34, 0.07, 0.03]} />
+            </mesh>
+            <mesh material={LUX.coveSoft} position={[0, 0.06, 0.3]} rotation-x={-Math.PI / 2}>
+              <planeGeometry args={[2.0, 1.4]} />
             </mesh>
           </group>
         );
@@ -275,6 +397,7 @@ function OutdoorImpl() {
       <Backdrop />
       <Ground />
       <Circulation />
+      <PlazaLandscape />
       <Perimeter />
       <Wayfinding />
     </group>

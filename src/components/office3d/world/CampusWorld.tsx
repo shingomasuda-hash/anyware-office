@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useLayoutEffect, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { LabSim } from "../LabSim";
 import { CAMPUS_RADIUS, canonicalToCampus, PLAZA_CENTER } from "./campus";
@@ -8,6 +9,7 @@ import { CampusBuildings } from "./massing";
 import { CampusOutdoor } from "./outdoor";
 import { SkyDome } from "./effects";
 import { MAT } from "./materials";
+import { LUX, makeSignage } from "./lux";
 import { u } from "./scale";
 
 /**
@@ -24,20 +26,63 @@ function PlazaCore() {
   const c = useMemo(() => canonicalToCampus(PLAZA_CENTER.x, PLAZA_CENTER.y), []);
   const x = u(c.x);
   const z = u(c.y);
+  const ring = useRef<THREE.Group>(null);
+  const sign = useMemo(
+    () => makeSignage("ANYWARE HQ", "FUTURE CAMPUS · CENTRAL PLAZA", "#7fd3f0", { dark: true }),
+    [],
+  );
+  useFrame((_, dt) => {
+    if (ring.current) ring.current.rotation.y += Math.min(dt, 0.2) * 0.05;
+  });
   return (
     <group position={[x, 0, z]}>
-      <mesh material={MAT.resinWhite} position={[0, 0.35, 0]} receiveShadow castShadow>
-        <cylinderGeometry args={[7.4, 8.0, 0.7, 32]} />
+      {/* stepped platform: the plaza is given a centre you walk up to */}
+      <mesh material={LUX.stone} position={[0, 0.11, 0]} receiveShadow>
+        <cylinderGeometry args={[11.5, 11.8, 0.22, 48]} />
       </mesh>
-      <mesh material={MAT.resinWhite} position={[0, 1.1, 0]} castShadow>
-        <cylinderGeometry args={[3.2, 3.8, 0.8, 24]} />
+      <mesh material={LUX.pearl} position={[0, 0.3, 0]} receiveShadow castShadow>
+        <cylinderGeometry args={[8.6, 8.9, 0.2, 44]} />
       </mesh>
-      <mesh material={MAT.matteSilver} position={[0, 5.2, 0]} castShadow>
-        <cylinderGeometry args={[0.9, 1.4, 7.4, 16]} />
+      {/* still water ring — light, sky and the buildings get a second read */}
+      <mesh material={LUX.smartGlass} position={[0, 0.38, 0]} rotation-x={-Math.PI / 2}>
+        <ringGeometry args={[5.6, 8.4, 48]} />
       </mesh>
-      <mesh material={MAT.matteSilver} position={[0, 9.4, 0]} rotation-x={Math.PI / 2}>
-        <torusGeometry args={[3.6, 0.22, 8, 26]} />
+      <mesh material={LUX.edge} position={[0, 0.41, 0]} rotation-x={-Math.PI / 2}>
+        <ringGeometry args={[8.4, 8.62, 48]} />
       </mesh>
+      {/* monument: pearl blades around a quiet core */}
+      <mesh material={LUX.pearl} position={[0, 0.62, 0]} receiveShadow castShadow>
+        <cylinderGeometry args={[3.4, 3.9, 0.44, 32]} />
+      </mesh>
+      <group ref={ring} position={[0, 6.2, 0]}>
+        {[0, 1, 2].map((i) => (
+          <mesh
+            key={i}
+            material={LUX.pearl}
+            rotation={[Math.PI / 2 + i * 0.34, 0, (i * Math.PI) / 3]}
+            castShadow
+          >
+            <torusGeometry args={[5.0 - i * 0.7, 0.2, 8, 44]} />
+          </mesh>
+        ))}
+      </group>
+      <mesh material={LUX.core} position={[0, 6.2, 0]}>
+        <cylinderGeometry args={[0.42, 0.6, 10.4, 18]} />
+      </mesh>
+      <mesh material={LUX.holoSoft} position={[0, 6.2, 0]}>
+        <cylinderGeometry args={[1.1, 1.5, 10.6, 18]} />
+      </mesh>
+      <mesh material={LUX.core} position={[0, 11.7, 0]}>
+        <sphereGeometry args={[0.6, 14, 12]} />
+      </mesh>
+      <group position={[0, 13.6, 0]}>
+        <mesh material={sign}>
+          <planeGeometry args={[7.6, 1.9]} />
+        </mesh>
+        <mesh material={sign} rotation-y={Math.PI}>
+          <planeGeometry args={[7.6, 1.9]} />
+        </mesh>
+      </group>
     </group>
   );
 }
