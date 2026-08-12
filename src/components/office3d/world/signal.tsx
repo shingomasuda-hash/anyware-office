@@ -103,7 +103,7 @@ function MediaFlowFloor({ hw, hd }: { hw: number; hd: number }) {
       <Plate w={hw * 2 - 2.6} d={hd * 2 - 2.6} y={0.03} r={1.4} mat={SIG.stoneDark} />
       {/* light stone field under the production side */}
       <group rotation-y={FLOW}>
-        <Plate w={17.0} d={13.0} x={-3.0} z={2.0} y={0.042} r={1.0} mat={SIG.stone} />
+        <Plate w={9.0} d={7.4} x={-6.4} z={-5.6} y={0.042} r={0.8} mat={SIG.stone} />
         {/* the flow line: one very thin magenta thread, nothing more */}
         <mesh material={SIG.magenta} position={[0, 0.05, 0]} rotation-x={-Math.PI / 2}>
           <planeGeometry args={[0.18, 34]} />
@@ -169,21 +169,21 @@ function MediaHalo() {
     if (band.current) band.current.rotation.z += Math.min(dt, 0.2) * 0.035;
   });
   return (
-    <group position={[ARENA[0], 5.7, ARENA[1]]} rotation={[Math.PI / 2 + 0.24, 0, 0]} scale={[1.42, 1, 1]}>
+    <group position={[ARENA[0], 6.3, ARENA[1]]} rotation={[Math.PI / 2 + 0.32, 0, 0]} scale={[1.28, 1, 1]}>
       {/* outer structural ribbon */}
       <mesh material={SIG.pearl} castShadow>
-        <torusGeometry args={[5.6, 0.46, 10, 56]} />
+        <torusGeometry args={[4.4, 0.5, 10, 56]} />
       </mesh>
       <mesh material={SIG.pearlDeep}>
-        <torusGeometry args={[6.05, 0.13, 8, 56]} />
+        <torusGeometry args={[4.85, 0.14, 8, 56]} />
       </mesh>
       {/* inner face: the information surface, ~40% of the ring */}
       <mesh ref={band} material={strip}>
-        <cylinderGeometry args={[5.15, 5.15, 0.62, 56, 1, true]} />
+        <cylinderGeometry args={[4.02, 4.02, 1.05, 56, 1, true]} />
       </mesh>
       {/* hidden cove on the underside — the landmark lights its own place */}
       <mesh material={SIG.warm}>
-        <torusGeometry args={[5.6, 0.07, 6, 56]} />
+        <torusGeometry args={[4.4, 0.085, 6, 56]} />
       </mesh>
     </group>
   );
@@ -638,7 +638,7 @@ function SignalCeiling({ hw, hd }: { hw: number; hd: number }) {
   // one plate with a hole punched over the arena, so the void is real
   const geo = useMemo(() => {
     const outer = roundedRect(hw * 2 - 2.4, hd * 2 - 2.4, 1.4);
-    const hole = roundedRect(11.5, 9.0, 1.0);
+    const hole = roundedRect(12.6, 9.8, 1.0);
     hole.getPoints().forEach(() => undefined);
     const shifted = new THREE.Path();
     const pts = hole.getPoints(24).map((p) => new THREE.Vector2(p.x + ARENA[0], p.y + ARENA[1]));
@@ -668,14 +668,14 @@ function SignalCeiling({ hw, hd }: { hw: number; hd: number }) {
       {/* the ceiling slopes with the flow: 4.9 m at the entrance side */}
       <mesh
         geometry={geo}
-        material={SIG.pearlDeep}
+        material={SIG.blackSoft}
         position={[0, 5.15, 0]}
         rotation={[Math.PI / 2, 0, 0]}
       />
       <mesh material={SIG.black} position={[0, 5.3, hd - 6.0]} rotation-x={Math.PI / 2}>
         <planeGeometry args={[hw * 2 - 3.0, 6.0]} />
       </mesh>
-      <Cove w={11.9} d={9.4} y={5.12} x={ARENA[0]} z={ARENA[1]} t={0.34} r={1.0} mat={SIG.warm} />
+      <Cove w={13.0} d={10.2} y={5.12} x={ARENA[0]} z={ARENA[1]} t={0.34} r={1.0} mat={SIG.warm} />
       {/* acoustic fins on the diagonal, over the production side */}
       <group position={[-3.0, 4.72, 0]}>
         <instancedMesh ref={fins} args={[undefined, undefined, finCount]} material={SIG.pearl}>
@@ -685,10 +685,10 @@ function SignalCeiling({ hw, hd }: { hw: number; hd: number }) {
       {/* the void: a lit well rising into the tower */}
       <group position={[ARENA[0], 0, ARENA[1]]}>
         {[
-          [0, -4.5, 0],
-          [0, 4.5, Math.PI],
-          [-5.75, 0, Math.PI / 2],
-          [5.75, 0, -Math.PI / 2],
+          [0, -4.9, 0],
+          [0, 4.9, Math.PI],
+          [-6.3, 0, Math.PI / 2],
+          [6.3, 0, -Math.PI / 2],
         ].map(([x, z, r], i) => (
           <mesh
             key={i}
@@ -697,13 +697,13 @@ function SignalCeiling({ hw, hd }: { hw: number; hd: number }) {
             rotation-y={r}
             receiveShadow
           >
-            <planeGeometry args={[i < 2 ? 11.5 : 9.0, 9.5]} />
+            <planeGeometry args={[i < 2 ? 12.6 : 9.8, 9.5]} />
           </mesh>
         ))}
         <mesh material={SIG.smoked} position={[0, 14.6, 0]} rotation-x={Math.PI / 2}>
-          <planeGeometry args={[11.5, 9.0]} />
+          <planeGeometry args={[12.6, 9.8]} />
         </mesh>
-        <Cove w={11.9} d={9.4} y={14.5} t={0.3} r={1.0} mat={SIG.warm} />
+        <Cove w={13.0} d={10.2} y={14.5} t={0.3} r={1.0} mat={SIG.warm} />
       </group>
       {/* suspended bridge: an upper media level you can see but not walk */}
       <group position={[ARENA[0], 0, ARENA[1]]} rotation-y={FLOW + 0.5}>

@@ -117,7 +117,7 @@ await setCam([dm[0] + f[0] * 3.0, 2.4, dm[1] + f[1] * 3.0], [cc.x * U, 3.4, cc.y
 await shot(A, "02-threshold");
 
 // 3 — HERO: inside the threshold, offset right, turned across the flow
-await view([-4.2, 3.0, 10.2], [4.2, 4.8, -4.5]);
+await view([-5.0, 2.9, 9.2], [4.2, 5.2, -4.2]);
 await shot(A, "03-hero");
 
 // 4 — Campaign Arena
@@ -125,7 +125,7 @@ await view([5.0, 2.2, 5.2], [3.6, 2.0, -5.0]);
 await shot(A, "04-campaign-arena");
 
 // 5 — Media Halo, looking up through the void
-await view([4.2, 1.7, 6.6], [4.0, 6.2, -4.2]);
+await view([4.0, 1.7, 7.4], [4.0, 6.4, -4.0]);
 await shot(A, "05-media-halo");
 
 // 6 — Editing Deck
