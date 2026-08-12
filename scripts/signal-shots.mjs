@@ -55,8 +55,10 @@ const settle = async (p, frames = 7) => {
   }
   await sleep(900);
 };
+const ONLY = (process.env.SHOTS ?? "").split(",").filter(Boolean);
 const peak = { calls: 0, triangles: 0, where: "" };
 const shot = async (p, name) => {
+  if (ONLY.length && !ONLY.some((k) => name.includes(k))) return;
   await settle(p);
   await p.screenshot({ path: `${OUT}/${name}.png` });
   const s = await p.evaluate(() => window.__officeLab.stats());
@@ -115,7 +117,7 @@ await setCam([dm[0] + f[0] * 3.0, 2.4, dm[1] + f[1] * 3.0], [cc.x * U, 3.4, cc.y
 await shot(A, "02-threshold");
 
 // 3 — HERO: inside the threshold, offset right, turned across the flow
-await view([5.4, 3.1, 11.8], [-1.6, 5.0, -6.0]);
+await view([-4.2, 3.0, 10.2], [4.2, 4.8, -4.5]);
 await shot(A, "03-hero");
 
 // 4 — Campaign Arena

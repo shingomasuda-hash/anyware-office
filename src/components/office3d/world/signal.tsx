@@ -129,18 +129,18 @@ function AngledSpine() {
           divides production from broadcast and frames the view instead
           of standing across it. Kept below the media layer so the halo
           and the ceiling stay visible over the top. */}
-      <group position={[-2.6, 0, 0.5]}>
-        <Box w={0.34} h={4.4} d={14.0} mat={SIG.black} />
-        <Box w={0.42} h={2.0} d={9.4} x={0.42} y={1.3} z={-1.4} mat={SIG.pearl} />
-        <mesh material={SIG.smoked} position={[0.3, 3.1, 3.0]} rotation-y={-Math.PI / 2}>
-          <planeGeometry args={[7.4, 2.4]} />
+      <group position={[-2.9, 0, -3.4]}>
+        <Box w={0.34} h={4.4} d={8.2} mat={SIG.black} />
+        <Box w={0.42} h={2.0} d={6.0} x={0.42} y={1.3} z={-0.6} mat={SIG.pearl} />
+        <mesh material={SIG.smoked} position={[0.3, 3.1, 1.4]} rotation-y={-Math.PI / 2}>
+          <planeGeometry args={[5.0, 2.4]} />
         </mesh>
         {/* a 6 cm information reveal running the length of the spine */}
         <mesh material={SIG.magenta} position={[0.19, 3.35, 0]} rotation-y={-Math.PI / 2}>
-          <planeGeometry args={[13.6, 0.06]} />
+          <planeGeometry args={[7.8, 0.06]} />
         </mesh>
         <mesh material={SIG.warm} position={[-0.19, 0.16, 0]} rotation-y={Math.PI / 2}>
-          <planeGeometry args={[13.6, 0.09]} />
+          <planeGeometry args={[7.8, 0.09]} />
         </mesh>
       </group>
     </group>
