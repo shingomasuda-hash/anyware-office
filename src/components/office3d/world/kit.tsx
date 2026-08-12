@@ -530,7 +530,7 @@ export function Slats({
       m.compose(
         new THREE.Vector3(t, 0, 0),
         new THREE.Quaternion(),
-        new THREE.Vector3(0.1, 0.34, len),
+        new THREE.Vector3(0.08, 0.26, len),
       );
       mesh.setMatrixAt(i, m);
     }

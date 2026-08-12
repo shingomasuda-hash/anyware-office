@@ -629,8 +629,8 @@ function SignalInterior({ hw, hd }: { hw: number; hd: number }) {
           <TaskChair z={1.1} rotY={Math.PI} />
         </group>
       ))}
-      <Slats count={15} span={12.6} len={2.2} y={4.72} z={3.4} rotY={Math.PI / 2} mat={LUX.pearl} />
-      <LightBar w={11.0} y={4.55} z={3.4} />
+      <Slats count={16} span={13.2} len={8.4} y={4.72} z={2.6} mat={LUX.pearl} />
+      <LightBar w={11.0} y={4.5} z={2.6} />
 
       {/* storyboard architecture: a wall you read */}
       <group position={[hw - 1.4, 0, hd - 8.0]} rotation-y={-Math.PI / 2}>
