@@ -24,6 +24,7 @@ import {
   WallScreen,
 } from "./kit";
 import { fillGradient, label, LUX, makeInfoPane, makeScreen, makeSignage } from "./lux";
+import { SignalDistrict } from "./signal";
 
 /**
  * LUXURY METAVERSE PASS — the five interiors.
@@ -497,162 +498,6 @@ function MeetingInterior({ hw, hd }: { hw: number; hd: number }) {
   );
 }
 
-/* ── SIGNAL — CREATIVE MEDIA LAB ─────────────────────────────────── */
-
-function MediaWall({ hd }: { hd: number }) {
-  const pulse = useRef<THREE.Mesh>(null);
-  useFrame((state) => {
-    if (pulse.current) {
-      const m = pulse.current.material as THREE.MeshBasicMaterial;
-      m.opacity = 0.18 + Math.sin(state.clock.elapsedTime * 1.1) * 0.1;
-    }
-  });
-  const campaign = useMemo(
-    () =>
-      makeScreen((ctx, w, h) => {
-        fillGradient(ctx, w, h, "#2a1240", "#7b2a8f");
-        ctx.fillStyle = "rgba(255,255,255,0.10)";
-        for (let i = 0; i < 7; i++) ctx.fillRect(0, (i * h) / 7, w, 2);
-        label(ctx, "SIGNAL", 70, h * 0.22, 150, "#ffe9fb", 800, 14);
-        label(ctx, "MARKETING / SNS / ADS / RECRUITING / WEB", 76, h * 0.56, 32, "#f0c6ea", 600, 8);
-        label(ctx, "CAMPAIGN 2026 — REACH 1.2M", 76, h * 0.72, 40, "#ffffff", 600, 3);
-      }, 1024, 576),
-    [],
-  );
-  const feed = useMemo(
-    () =>
-      makeScreen((ctx, w, h) => {
-        fillGradient(ctx, w, h, "#1a1430", "#3a1c52");
-        ctx.fillStyle = "rgba(255,255,255,0.06)";
-        for (let i = 0; i < 4; i++) ctx.fillRect(60, 70 + i * 130, w - 120, 96);
-        label(ctx, "NOW PLAYING", 62, 24, 30, "#f0c6ea", 600, 8);
-        ["BRAND FILM  ／  02:14", "RECRUIT LP  ／  A/B  62%", "SNS REEL  ／  SCHEDULED", "PRESS KIT  ／  DRAFT"].forEach(
-          (t, i) => label(ctx, t, 84, 98 + i * 130, 38, "#ffe9fb", 600, 2),
-        );
-      }, 1024, 576),
-    [],
-  );
-  const analytics = useMemo(
-    () =>
-      makeInfoPane(
-        "LIVE ANALYTICS",
-        [
-          ["IMPRESSIONS", "1.24 M"],
-          ["ENGAGE", "8.7 %"],
-          ["APPLICANTS", "312"],
-        ],
-        "#f08ad8",
-      ),
-    [],
-  );
-  return (
-    <group position={[0, 0, -hd + 2.6]}>
-      {/* two panels set at a shallow angle: a wall you stand in front of */}
-      {[
-        [-1, campaign, 6.3],
-        [1, feed, 6.3],
-      ].map(([s, mat, pw], i) => (
-        <group key={i} position={[(s as number) * 3.25, 0, 0.28]} rotation-y={-(s as number) * 0.11}>
-          <Box w={6.5} h={4.5} d={0.2} y={1.45} mat={LUX.graphite} shadow={false} />
-          <mesh material={mat as THREE.Material} position={[0, 3.7, 0.12]}>
-            <planeGeometry args={[pw as number, 3.54]} />
-          </mesh>
-        </group>
-      ))}
-      <mesh ref={pulse} material={LUX.holoSoft} position={[0, 3.7, 0.6]}>
-        <planeGeometry args={[13.6, 4.4]} />
-      </mesh>
-      <Cove w={14.4} d={2.4} y={5.6} t={0.3} r={0.4} />
-      {/* viewing step + bench: the room invites you to stop here */}
-      <Box w={13.0} h={0.22} d={2.4} z={2.4} mat={LUX.stoneDark} />
-      <Box w={9.0} h={0.44} d={0.9} y={0.22} z={2.8} mat={LUX.wood} />
-      <Cove w={13.4} d={2.8} y={0.24} t={0.1} r={0.2} mat={LUX.edge} faceDown={false} />
-      <HoloPane w={2.6} h={1.75} y={2.3} x={8.4} z={4.6} rotY={-0.66} mat={analytics} />
-    </group>
-  );
-}
-
-function SignalInterior({ hw, hd }: { hw: number; hd: number }) {
-  const monitor = useMemo(
-    () =>
-      makeScreen((ctx, w, h) => {
-        fillGradient(ctx, w, h, "#1a1030", "#0d0a1a");
-        ctx.fillStyle = "#c56bd8";
-        ctx.fillRect(30, 34, 4, 40);
-        label(ctx, "EDIT", 48, 32, 34, "#f2d8f8", 600, 4);
-        for (let i = 0; i < 5; i++) {
-          ctx.fillStyle = i % 2 ? "#3d2a5c" : "#54306e";
-          ctx.fillRect(30, 100 + i * 34, (w - 60) * (0.35 + ((i * 53) % 60) / 100), 20);
-        }
-      }, 512, 288),
-    [],
-  );
-  const board = useMemo(
-    () =>
-      makeScreen((ctx, w, h) => {
-        fillGradient(ctx, w, h, "#f7f4fa", "#e9e2f2");
-        for (let i = 0; i < 8; i++) {
-          const x = 40 + (i % 4) * 250;
-          const y = 60 + Math.floor(i / 4) * 250;
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(x, y, 210, 190);
-          ctx.fillStyle = ["#f26bd8", "#a88cff", "#59b8ff", "#ffd166"][i % 4];
-          ctx.fillRect(x, y, 210, 10);
-          ctx.fillStyle = "#cfc6dc";
-          for (let k = 0; k < 4; k++) ctx.fillRect(x + 18, y + 44 + k * 30, 210 - 70 - k * 22, 9);
-        }
-      }, 1024, 576),
-    [],
-  );
-  return (
-    <group>
-      <Plate w={hw * 2 - 2.6} d={hd * 2 - 2.6} y={0.032} r={1.6} mat={LUX.stoneDark} />
-      <FloorInlay w={hw * 2 - 8.0} d={10.0} z={1.0} r={1.0} mat={LUX.stone} />
-      <CeilingLayers w={hw * 2 - 2.2} d={hd * 2 - 2.2} base={5.0} lift={0.9} inset={2.6} mat={LUX.pearlDeep} />
-
-      <MediaWall hd={hd} />
-
-      {/* production stations facing the wall */}
-      {[-1, 0, 1].map((i) => (
-        <group key={i} position={[i * 4.0, 0, 2.0]}>
-          <Desk w={2.4} d={0.9} screen={monitor} />
-          <group position={[0, 0.77, -0.12]}>
-            {[-1, 1].map((s) => (
-              <group key={s} position={[s * 1.0, 0.5, 0.12]} rotation-y={-s * 0.42}>
-                <mesh material={monitor}>
-                  <planeGeometry args={[0.8, 0.45]} />
-                </mesh>
-                <Box w={0.85} h={0.5} d={0.03} y={-0.25} z={-0.02} mat={LUX.graphite} shadow={false} />
-              </group>
-            ))}
-          </group>
-          <TaskChair z={1.1} rotY={Math.PI} />
-        </group>
-      ))}
-      <Slats count={16} span={13.2} len={8.4} y={4.72} z={2.6} mat={LUX.pearl} />
-      <LightBar w={11.0} y={4.5} z={2.6} />
-
-      {/* storyboard architecture: a wall you read */}
-      <group position={[hw - 1.4, 0, hd - 8.0]} rotation-y={-Math.PI / 2}>
-        <Box w={9.0} h={4.0} d={0.2} y={0.9} mat={LUX.pearl} shadow={false} />
-        <mesh material={board} position={[0, 2.75, 0.12]}>
-          <planeGeometry args={[8.2, 2.6]} />
-        </mesh>
-        <Cove w={9.2} d={0.5} y={4.95} t={0.14} r={0.1} />
-      </group>
-
-      {/* a soft corner so the studio still feels like a place to be */}
-      <group position={[-hw + 4.6, 0, hd - 6.0]}>
-        <Rug w={4.4} d={3.6} />
-        <Sofa w={2.2} z={-1.3} mat={LUX.fabricWarm} />
-        <LowTable w={1.1} d={0.7} />
-        <Planter x={2.0} z={-1.4} />
-      </group>
-      <GreenBed w={4.6} d={1.2} x={2.2} z={hd - 3.0} />
-    </group>
-  );
-}
-
 /* ── dispatch ────────────────────────────────────────────────────── */
 
 export const LUXURY_AREAS = new Set(["ENTRANCE", "STAFF", "MEETING", "SIGNAL"]);
@@ -677,7 +522,7 @@ export function LuxuryInterior({
     case "MEETING":
       return <MeetingInterior hw={hw} hd={hd} />;
     case "SIGNAL":
-      return <SignalInterior hw={hw} hd={hd} />;
+      return <SignalDistrict hw={hw} hd={hd} />;
     default:
       return null;
   }

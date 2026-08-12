@@ -353,10 +353,29 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
           <Roof b={b} sim={sim}>
             <Slab y={6.5} w={hw * 2 + 0.6} h={0.5} d={hd * 2 + 0.6} mat={deck} />
           </Roof>
-          {/* tower: leaning slab + crown, the campus landmark */}
+          {/* Tower on a glazed base. Lifting it opens a 14.5 m void over
+              the Campaign Arena and lets the MEDIA HALO be seen from the
+              campus — the landmark works from outside and inside. */}
           <group position={[hw * 0.32, 0, -hd * 0.28]} rotation-y={0.33}>
-            <mesh material={MAT.wallPaint} position={[0, H / 2 + 2, 0]} rotation-z={0.045} castShadow>
-              <boxGeometry args={[7.6, H - 4, 7.0]} />
+            {[-1, 1].flatMap((sx) =>
+              [-1, 1].map((sz) => (
+                <Slab
+                  key={`${sx}${sz}`}
+                  x={sx * 5.6}
+                  y={7.6}
+                  z={sz * 4.4}
+                  w={0.34}
+                  h={15.2}
+                  d={0.34}
+                  mat={MAT.resinWhite}
+                />
+              )),
+            )}
+            <mesh material={MAT.glassMeeting} position={[0, 8.0, 0]}>
+              <boxGeometry args={[7.2, 14.6, 6.6]} />
+            </mesh>
+            <mesh material={MAT.wallPaint} position={[0, 20.4, 0]} rotation-z={0.045} castShadow>
+              <boxGeometry args={[7.6, 11.2, 7.0]} />
             </mesh>
             <Slab y={H + 0.4} w={9.2} h={0.7} d={8.6} mat={deck} />
             <mesh material={MAT.matteSilver} position={[0, H + 1.9, 0]} rotation-x={Math.PI / 2}>
