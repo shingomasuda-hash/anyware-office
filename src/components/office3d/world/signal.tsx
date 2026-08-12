@@ -647,7 +647,7 @@ function SignalCeiling({ hw, hd }: { hw: number; hd: number }) {
     return new THREE.ShapeGeometry(outer, 6);
   }, [hw, hd]);
   const fins = useRef<THREE.InstancedMesh>(null);
-  const finCount = 16;
+  const finCount = 7;
   const wrote = useRef(false);
   useFrame(() => {
     if (wrote.current || !fins.current) return;
@@ -656,8 +656,8 @@ function SignalCeiling({ hw, hd }: { hw: number; hd: number }) {
     const q = new THREE.Quaternion();
     q.setFromEuler(new THREE.Euler(0, FLOW, 0));
     for (let i = 0; i < finCount; i++) {
-      const t = -9.0 + (13.5 * i) / (finCount - 1);
-      m.compose(new THREE.Vector3(t, 0, 3.2), q, new THREE.Vector3(0.07, 0.3, 13.0));
+      const t = -3.2 + (6.4 * i) / (finCount - 1);
+      m.compose(new THREE.Vector3(t, 0, 2.0), q, new THREE.Vector3(0.06, 0.22, 7.0));
       fins.current.setMatrixAt(i, m);
     }
     fins.current.count = finCount;
@@ -677,7 +677,7 @@ function SignalCeiling({ hw, hd }: { hw: number; hd: number }) {
       </mesh>
       <Cove w={13.0} d={10.2} y={5.12} x={ARENA[0]} z={ARENA[1]} t={0.34} r={1.0} mat={SIG.warm} />
       {/* acoustic fins on the diagonal, over the production side */}
-      <group position={[-3.0, 4.72, 0]}>
+      <group position={[-7.6, 4.78, 1.0]}>
         <instancedMesh ref={fins} args={[undefined, undefined, finCount]} material={SIG.pearl}>
           <boxGeometry />
         </instancedMesh>

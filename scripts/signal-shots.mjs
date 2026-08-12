@@ -117,7 +117,7 @@ await setCam([dm[0] + f[0] * 3.0, 2.4, dm[1] + f[1] * 3.0], [cc.x * U, 3.4, cc.y
 await shot(A, "02-threshold");
 
 // 3 — HERO: inside the threshold, offset right, turned across the flow
-await view([-5.0, 2.9, 9.2], [4.2, 5.2, -4.2]);
+await view([-5.4, 2.7, 9.6], [3.8, 2.2, -4.2]);
 await shot(A, "03-hero");
 
 // 4 — Campaign Arena
