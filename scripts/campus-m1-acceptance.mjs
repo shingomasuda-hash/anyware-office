@@ -20,7 +20,7 @@ const MEMBER_EMAIL = process.env.TEST_MEMBER_EMAIL;
 const MEMBER_PASSWORD = process.env.TEST_MEMBER_PASSWORD;
 
 const M = 0.075; // metres per campus unit
-const WALK_MPS = 7.6; // must match labTuning.LAB_SPEED_MPS
+const WALK_MPS = 6.5; // must match labTuning.LAB_SPEED_MPS
 
 const results = [];
 const record = (n, p, note = "") => {

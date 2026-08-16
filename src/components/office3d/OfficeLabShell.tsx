@@ -122,26 +122,12 @@ export default function OfficeLabShell() {
     };
   }, [sim]);
 
-  // Fixed-timestep simulation on the wall clock — movement speed must
-  // not depend on render FPS (weak GPUs render slower; they must not
-  // WALK slower). Sub-steps stay ≤50ms so collision behaves exactly
-  // like the 2D engine. The 1.5s catch-up ceiling covers main-thread
-  // stalls from slow renderers without unbounded replay after a long
-  // suspension (keys are cleared on blur, so replay is input-bounded).
-  useEffect(() => {
-    let last = performance.now();
-    const id = window.setInterval(() => {
-      const now = performance.now();
-      let elapsed = Math.min((now - last) / 1000, 1.5);
-      last = now;
-      while (elapsed > 0) {
-        const step = Math.min(elapsed, 0.05);
-        sim.update(step);
-        elapsed -= step;
-      }
-    }, 16);
-    return () => window.clearInterval(id);
-  }, [sim]);
+  // The simulation is driven from the RENDER loop (Office3DCanvas), not
+  // from a timer. A timer ticking at 16 ms against a frame loop running
+  // at another rate lands a different number of steps in each frame,
+  // which is exactly what reads as stutter. Stepping once per frame on
+  // the wall clock keeps walking speed independent of FPS *and* keeps
+  // every frame's motion proportional to the time it represents.
 
   const overlayOpen = cardUserId !== null || editorOpen || openArea !== null;
   useEffect(() => {

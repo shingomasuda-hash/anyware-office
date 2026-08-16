@@ -89,11 +89,16 @@ interface Framing {
  * eased over ~0.6 s, never snapped.
  */
 const EXTERIOR: Framing = { y: 10.4, dist: 14.6, look: 5.2 };
-const INTERIOR_DEFAULT: Framing = { y: 6.8, dist: 8.6, look: 3.4 };
+/** Indoors the camera drops to roughly a head above the avatar and
+ *  looks along the room. At the old height the ceiling filled the
+ *  frame and you could not read the space you were standing in. */
+const INTERIOR_DEFAULT: Framing = { y: 2.9, dist: 5.4, look: 2.0 };
 const AREA_CAM: Partial<Record<AreaId, Framing>> = {
-  ENTRANCE: { y: 8.2, dist: 10.4, look: 4.2 },
-  STAFF: { y: 6.6, dist: 8.4, look: 3.3 },
-  MEETING: { y: 5.9, dist: 7.4, look: 2.9 },
+  // the arrival hall is taller, so it can carry a little more height
+  ENTRANCE: { y: 3.6, dist: 6.6, look: 2.4 },
+  STAFF: { y: 2.9, dist: 5.4, look: 2.0 },
+  MEETING: { y: 2.9, dist: 5.6, look: 2.0 },
+  SIGNAL: { y: 3.0, dist: 5.8, look: 2.1 },
 };
 
 /**
@@ -217,7 +222,7 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
     // further down, so being cornered turns into a clean look into the
     // room instead of a close-up of the wall behind you.
     const t = Math.max(0, Math.min(1, (dist - MIN_BOOM) / Math.max(0.001, camDist - MIN_BOOM)));
-    vDesired.set(x + ox * dist, camY + (1 - t) * 2.4, z + oz * dist);
+    vDesired.set(x + ox * dist, camY + (1 - t) * (area ? 0.8 : 2.4), z + oz * dist);
     if (first.current) {
       camera.position.copy(vDesired);
       first.current = false;
@@ -281,6 +286,27 @@ function Lights() {
       ))}
     </>
   );
+}
+
+/**
+ * Steps the simulation once per rendered frame, on the wall clock.
+ * Sub-steps stay <= 50 ms so collision behaves exactly as it does in
+ * the 2D engine, and a 1.5 s catch-up ceiling covers main-thread
+ * stalls without unbounded replay.
+ */
+function SimDriver({ sim }: { sim: LabSim }) {
+  const last = useRef(performance.now());
+  useFrame(() => {
+    const now = performance.now();
+    let elapsed = Math.min((now - last.current) / 1000, 1.5);
+    last.current = now;
+    while (elapsed > 0) {
+      const step = Math.min(elapsed, 0.05);
+      sim.update(step);
+      elapsed -= step;
+    }
+  });
+  return null;
 }
 
 /**
@@ -503,6 +529,7 @@ export default function Office3DCanvas({
     >
       <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(Math.min(window.devicePixelRatio, 2))}>
         <Lights />
+        <SimDriver sim={sim} />
         <CampusWorld sim={sim} />
         <CameraRig sim={sim} isMobile={isMobile} />
         <LabInstruments sim={sim} />
