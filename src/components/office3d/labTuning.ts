@@ -10,12 +10,12 @@
  * the campus", so the three windows only all fit inside a narrow band
  * of pace and ring size. This value is the measured fit:
  *
- *   adjacent 5.0–6.2 s · medium 9.7–11.9 s · opposite 17.8–18.5 s
+ *   adjacent 5.0–6.2 s · medium 9.6–11.8 s · opposite 17.7–18.4 s
  *
  * Re-run scripts/campus-check.ts after touching this or RING_SCALE —
  * it prints the real numbers and fails if any window is missed.
  */
-export const LAB_SPEED_MPS = 6.5;
+export const LAB_SPEED_MPS = 5.6;
 
 /** Sprint multiplier (Shift), for crossing the whole campus. */
 export const LAB_SPRINT = 1.55;

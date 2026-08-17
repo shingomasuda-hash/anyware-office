@@ -24,6 +24,10 @@ export interface AvatarSample {
   y: number;
   direction: Direction;
   moving: boolean;
+  /** seated at a desk: the rig folds instead of walking */
+  seated?: boolean;
+  /** seat pan height in metres, so the body rides the actual chair */
+  seatHeight?: number;
 }
 
 function shade(hex: string, f: number): string {
@@ -66,6 +70,7 @@ export default function AvatarMesh({
   const elbowR = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const phase = useRef(0);
+  const sit = useRef(0);
   const yaw = useRef(0);
   const lastT = useRef(performance.now());
 
@@ -159,32 +164,47 @@ export default function AvatarMesh({
     yaw.current += dy * Math.min(1, dt * 14);
     g.rotation.y = yaw.current;
 
+    // seated pose: hips drop onto the pan, thighs go level, knees fold.
+    // Interpolated so sitting down and standing up are continuous.
+    const wantSit = s.seated ? 1 : 0;
+    sit.current += (wantSit - sit.current) * Math.min(1, dt * 6);
+    const sk = sit.current;
+    if (g.children.length) g.position.y = -(0.86 - (s.seatHeight ?? 0.44)) * sk;
+
     // gait
-    if (s.moving) phase.current += dt * 9;
+    if (s.moving && sk < 0.5) phase.current += dt * 9;
     else phase.current *= 1 - Math.min(1, dt * 10);
     const p = phase.current;
     const swing = Math.sin(p) * (s.moving ? 0.55 : 0);
     const t = now / 1000;
 
     // legs: hip swing + knee flex on the recovering leg
-    if (hipL.current) hipL.current.rotation.x = swing;
-    if (hipR.current) hipR.current.rotation.x = -swing;
-    if (kneeL.current) kneeL.current.rotation.x = s.moving ? Math.max(0, -Math.sin(p)) * 0.85 : 0;
-    if (kneeR.current) kneeR.current.rotation.x = s.moving ? Math.max(0, Math.sin(p)) * 0.85 : 0;
+    const HIP_SIT = -Math.PI / 2;
+    const KNEE_SIT = Math.PI / 2;
+    if (hipL.current) hipL.current.rotation.x = swing * (1 - sk) + HIP_SIT * sk;
+    if (hipR.current) hipR.current.rotation.x = -swing * (1 - sk) + HIP_SIT * sk;
+    const kL = s.moving ? Math.max(0, -Math.sin(p)) * 0.85 : 0;
+    const kR = s.moving ? Math.max(0, Math.sin(p)) * 0.85 : 0;
+    if (kneeL.current) kneeL.current.rotation.x = kL * (1 - sk) + KNEE_SIT * sk;
+    if (kneeR.current) kneeR.current.rotation.x = kR * (1 - sk) + KNEE_SIT * sk;
 
     // arms: counter-swing + relaxed elbow
     const armIdle = Math.sin(t * 1.1) * 0.03;
-    if (shoulderL.current) shoulderL.current.rotation.x = -swing * 0.75 + armIdle;
-    if (shoulderR.current) shoulderR.current.rotation.x = swing * 0.75 - armIdle;
+    const ARM_SIT = -0.62;
+    if (shoulderL.current)
+      shoulderL.current.rotation.x = (-swing * 0.75 + armIdle) * (1 - sk) + ARM_SIT * sk;
+    if (shoulderR.current)
+      shoulderR.current.rotation.x = (swing * 0.75 - armIdle) * (1 - sk) + ARM_SIT * sk;
     if (elbowL.current) elbowL.current.rotation.x = -(0.25 + (s.moving ? Math.max(0, Math.sin(p)) * 0.35 : 0));
     if (elbowR.current) elbowR.current.rotation.x = -(0.25 + (s.moving ? Math.max(0, -Math.sin(p)) * 0.35 : 0));
 
     // body: walk bob / idle breathing + subtle weight shift
     if (body.current) {
-      body.current.position.y = s.moving
-        ? Math.abs(Math.sin(p)) * 0.045
-        : Math.sin(t / 0.9) * 0.012;
-      body.current.rotation.z = s.moving ? Math.sin(p) * 0.03 : Math.sin(t * 0.45) * 0.018;
+      body.current.position.y =
+        (s.moving ? Math.abs(Math.sin(p)) * 0.045 : Math.sin(t / 0.9) * 0.012) * (1 - sk);
+      body.current.rotation.z =
+        (s.moving ? Math.sin(p) * 0.03 : Math.sin(t * 0.45) * 0.018) * (1 - sk);
+      body.current.rotation.x = 0.09 * sk;
     }
   });
 

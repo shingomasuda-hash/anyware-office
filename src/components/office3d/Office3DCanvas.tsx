@@ -23,6 +23,7 @@ import {
   PLAZA_CENTER,
 } from "./world/campus";
 import { ROOM_THEMES } from "./world/themes";
+import { SEATS } from "./world/seats";
 
 const SKY = "#e9e4f5";
 
@@ -67,6 +68,8 @@ declare global {
         ly: number,
         lz: number,
       ) => [number, number, number];
+      /** dev/test only: seat anchors in canonical units */
+      seats: () => Array<{ id: string; areaId: AreaId; label: string; ax: number; ay: number }>;
       /** dev/test only: park the camera for a survey shot, null resumes */
       setCamera: (
         pos: [number, number, number] | null,
@@ -407,6 +410,14 @@ function LabInstruments({ sim }: { sim: LabSim }) {
           y: r.y,
         })),
       probe: (ax, ay, bx, by) => sim.probePath(ax, ay, bx, by),
+      seats: () =>
+        SEATS.map((s) => ({
+          id: s.id,
+          areaId: s.areaId,
+          label: s.label,
+          ax: s.approach.x,
+          ay: s.approach.y,
+        })),
       localToWorld: (id, lx, ly, lz) => {
         const b = BUILDING_BY_ID[id];
         // exactly the transform world/massing.tsx BuildingFrame applies
@@ -535,7 +546,12 @@ export default function Office3DCanvas({
         <LabInstruments sim={sim} />
         <AvatarMesh
           identity={localIdentity}
-          sample={() => sim.avatar}
+          sample={() => {
+            const seat = sim.seatedIn();
+            return seat
+              ? { ...sim.avatar, seated: true, seatHeight: seat.seatHeight }
+              : sim.avatar;
+          }}
           showTag={false}
           onClick={onPickSelf}
         />

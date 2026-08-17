@@ -40,7 +40,7 @@ import type { AreaId, Rect } from "@/types/office";
  */
 
 /** Ring size knob — §2 says M1 measures, then fixes this. */
-export const RING_SCALE = 0.84;
+export const RING_SCALE = 0.74;
 
 /** Plaza-centre to building-centre distance at RING_SCALE = 1. */
 const BASE_RADIUS = 1160;

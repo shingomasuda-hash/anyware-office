@@ -4,6 +4,7 @@ import type { AvatarIdentity } from "@/lib/identity/identity";
 import { moveWithCollision } from "@/lib/game/collision";
 import { AVATAR_SIZE, findAreaAt, SOLIDS } from "@/lib/game/map";
 import { campusStretch, canonicalToCampus, LAB_SPAWN } from "./world/campus";
+import { type Seat, seatNear } from "./world/seats";
 import { LAB_SPEED_UNITS, LAB_SPRINT } from "./labTuning";
 import type { GameSnapshot } from "@/lib/game/engine";
 import type { RemoteAvatarRender } from "@/lib/realtime/types";
@@ -73,6 +74,14 @@ export class LabSim {
   private latchedK = 0;
   private wasActive = false;
   private sprinting = false;
+  // ── seat check-in ──────────────────────────────────────────────────
+  private seatPhase: "idle" | "approach" | "sitting" | "seated" | "standing" = "idle";
+  private seat: Seat | null = null;
+  private seatT = 0;
+  private seatFrom = { x: 0, y: 0 };
+  private nearby: Seat | null = null;
+  /** fired when the seat you could take, or the one you are in, changes */
+  onSeatChange: ((s: { nearby: Seat | null; seated: Seat | null }) => void) | null = null;
   private inputEnabled = true;
   private currentArea: AreaId | null = findAreaAt(LAB_SPAWN);
   private localIdentity: AvatarIdentity | null = null;
@@ -174,6 +183,100 @@ export class LabSim {
     };
   }
 
+  /** The seat within reach, if any. */
+  seatInReach(): Seat | null {
+    return this.seatPhase === "idle" ? this.nearby : null;
+  }
+
+  /** The seat currently occupied, if any. */
+  seatedIn(): Seat | null {
+    return this.seatPhase === "seated" ? this.seat : null;
+  }
+
+  isSeated(): boolean {
+    return this.seatPhase === "seated";
+  }
+
+  /** Walk to a seat and sit. No teleport: the avatar covers the ground. */
+  sit(seat?: Seat | null): boolean {
+    const target = seat ?? this.nearby;
+    if (!target || this.seatPhase !== "idle") return false;
+    this.seat = target;
+    this.seatPhase = "approach";
+    this.seatT = 0;
+    this.seatFrom = { x: this.avatar.x, y: this.avatar.y };
+    this.pressed.clear();
+    this.avatar.moving = true;
+    this.notifySeat();
+    return true;
+  }
+
+  /** Stand up and step back to the approach point. */
+  stand(): boolean {
+    if (this.seatPhase !== "seated" || !this.seat) return false;
+    this.seatPhase = "standing";
+    this.seatT = 0;
+    this.seatFrom = { x: this.avatar.x, y: this.avatar.y };
+    this.notifySeat();
+    return true;
+  }
+
+  private notifySeat() {
+    this.onSeatChange?.({ nearby: this.seatInReach(), seated: this.seatedIn() });
+  }
+
+  /** Face the avatar along a canonical delta, in 4-way terms. */
+  private faceAlong(dx: number, dy: number) {
+    if (Math.abs(dx) >= Math.abs(dy)) this.avatar.direction = dx >= 0 ? "right" : "left";
+    else this.avatar.direction = dy >= 0 ? "down" : "up";
+  }
+
+  /**
+   * Seat transitions. Position is interpolated in CANONICAL space, so
+   * the broadcast position stays continuous and 2D clients see a walk,
+   * never a jump.
+   */
+  private stepSeat(dt: number): void {
+    const seat = this.seat;
+    if (!seat) {
+      this.seatPhase = "idle";
+      return;
+    }
+    const move = (to: { x: number; y: number }, secs: number) => {
+      this.seatT = Math.min(1, this.seatT + dt / secs);
+      const k = this.seatT * this.seatT * (3 - 2 * this.seatT); // smoothstep
+      this.avatar.x = this.seatFrom.x + (to.x - this.seatFrom.x) * k;
+      this.avatar.y = this.seatFrom.y + (to.y - this.seatFrom.y) * k;
+      this.faceAlong(to.x - this.seatFrom.x, to.y - this.seatFrom.y);
+      return this.seatT >= 1;
+    };
+    if (this.seatPhase === "approach") {
+      const secs = Math.max(
+        0.25,
+        Math.hypot(seat.approach.x - this.seatFrom.x, seat.approach.y - this.seatFrom.y) / 90,
+      );
+      if (move(seat.approach, secs)) {
+        this.seatPhase = "sitting";
+        this.seatT = 0;
+        this.seatFrom = { x: this.avatar.x, y: this.avatar.y };
+      }
+    } else if (this.seatPhase === "sitting") {
+      if (move(seat.canonical, 0.45)) {
+        this.seatPhase = "seated";
+        this.avatar.moving = false;
+        this.notifySeat();
+      }
+    } else if (this.seatPhase === "standing") {
+      if (move(seat.approach, 0.4)) {
+        this.seatPhase = "idle";
+        this.seat = null;
+        this.avatar.moving = false;
+        this.notifySeat();
+      }
+    }
+    this.updateArea();
+  }
+
   getSnapshot(): GameSnapshot {
     return {
       x: Math.round(this.avatar.x),
@@ -257,7 +360,16 @@ export class LabSim {
   /** Called from the R3F frame loop. */
   update(rawDt: number) {
     const dt = Math.min(rawDt, MAX_DT);
+    if (this.seatPhase === "approach" || this.seatPhase === "sitting" || this.seatPhase === "standing") {
+      this.stepSeat(dt);
+      return;
+    }
     const raw = this.inputEnabled ? this.inputVector() : { x: 0, y: 0 };
+    if (this.seatPhase === "seated") {
+      // walking away is the natural way to leave a seat
+      if (Math.hypot(raw.x, raw.y) > 0.001) this.stand();
+      return;
+    }
     const len = Math.hypot(raw.x, raw.y);
     this.avatar.moving = len > 0.001;
     // Latch the view rotation when an input gesture STARTS: while a
@@ -317,6 +429,11 @@ export class LabSim {
     if (area !== this.currentArea) {
       this.currentArea = area;
       this.onAreaChange?.(area);
+    }
+    const near = seatNear(this.avatar.x, this.avatar.y, area);
+    if (near !== this.nearby) {
+      this.nearby = near;
+      this.notifySeat();
     }
   }
 }

@@ -16,6 +16,7 @@ import ProfileCard from "@/components/office/ProfileCard";
 import ProfileEditor from "@/components/office/ProfileEditor";
 import RealtimeHUD from "@/components/office/RealtimeHUD";
 import { LabSim } from "./LabSim";
+import type { Seat } from "./world/seats";
 import Office3DCanvas from "./Office3DCanvas";
 
 // /office-lab shell (STEP 4.9). Reuses the STEP 3/4 hooks + HUD stack
@@ -99,6 +100,10 @@ export default function OfficeLabShell() {
   const [cardUserId, setCardUserId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [openArea, setOpenArea] = useState<AreaId | null>(null);
+  const [seat, setSeat] = useState<{ nearby: Seat | null; seated: Seat | null }>({
+    nearby: null,
+    seated: null,
+  });
   const user = useCurrentUser();
   const sessionRole = useSessionRole();
   const isMobile = useIsMobile();
@@ -114,10 +119,12 @@ export default function OfficeLabShell() {
 
   useEffect(() => {
     sim.onAreaChange = setCurrentArea;
+    sim.onSeatChange = setSeat;
     sim.attach();
     setCurrentArea(sim.getSnapshot().area);
     return () => {
       sim.onAreaChange = null;
+      sim.onSeatChange = null;
       sim.detach();
     };
   }, [sim]);
@@ -253,12 +260,17 @@ export default function OfficeLabShell() {
       if (e.key === "Escape") {
         setOpenArea(null);
       } else if ((e.key === "e" || e.key === "E") && !e.metaKey && !e.ctrlKey) {
-        if (!overlayOpen) setOpenArea((prev) => prev ?? currentArea);
+        if (overlayOpen) return;
+        // A seat within reach owns E — sitting down is the more
+        // specific action, and the area panel is always one step away.
+        if (sim.isSeated()) sim.stand();
+        else if (sim.seatInReach()) sim.sit();
+        else setOpenArea((prev) => prev ?? currentArea);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [currentArea, overlayOpen]);
+  }, [currentArea, overlayOpen, sim]);
 
   if (supported === false) {
     return (
@@ -328,7 +340,36 @@ export default function OfficeLabShell() {
           </Link>
         </div>
 
-        {currentArea && !overlayOpen ? (
+        {!overlayOpen && (seat.seated || seat.nearby) ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-24 z-30 flex flex-col items-center gap-2 px-4 md:bottom-28">
+            {seat.seated ? (
+              <div
+                data-testid="checked-in"
+                data-seat-id={seat.seated.id}
+                className="rounded-full border border-emerald-300/30 bg-[#0d1420]/80 px-3 py-1 text-[11px] font-semibold tracking-[0.18em] text-emerald-200 backdrop-blur"
+              >
+                CHECKED IN · {seat.seated.label.toUpperCase()}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              data-testid="seat-action"
+              aria-label={seat.seated ? "Stand up" : `Sit and check in at ${seat.nearby?.label}`}
+              onClick={() => (seat.seated ? sim.stand() : sim.sit())}
+              className="pointer-events-auto rounded-full border border-cyan-200/30 bg-[#0d1420]/85 px-5 py-2.5 text-xs font-semibold tracking-[0.16em] text-cyan-100 shadow-[0_2px_14px_rgba(8,14,24,0.45)] backdrop-blur transition-colors hover:bg-[#16233a]/90"
+            >
+              {seat.seated
+                ? isMobile
+                  ? "STAND"
+                  : "E · STAND UP"
+                : isMobile
+                  ? "SIT"
+                  : `E · SIT & CHECK IN`}
+            </button>
+          </div>
+        ) : null}
+
+        {currentArea && !overlayOpen && !seat.seated && !seat.nearby ? (
           <InteractionPrompt
             area={currentArea}
             mobile={isMobile}
@@ -337,7 +378,11 @@ export default function OfficeLabShell() {
           />
         ) : null}
 
-        {isMobile ? <MobileJoystick onVector={handleJoystick} /> : null}
+        {isMobile ? (
+          <div className={seat.seated ? "pointer-events-none opacity-40" : undefined}>
+            <MobileJoystick onVector={handleJoystick} />
+          </div>
+        ) : null}
 
         {openArea ? (
           <AreaPanel areaId={openArea} role={role} onClose={() => setOpenArea(null)} />
