@@ -6,6 +6,7 @@ import * as THREE from "three";
 import type { LabSim } from "../LabSim";
 import { CAMPUS_RADIUS, canonicalToCampus, PLAZA_CENTER } from "./campus";
 import { CampusBuildings } from "./massing";
+import { CampusFacades } from "./facades";
 import { CampusOutdoor } from "./outdoor";
 import { MetaCity, SkyDome } from "./effects";
 import { MAT } from "./materials";
@@ -153,6 +154,7 @@ function CampusWorldImpl({ sim }: { sim: LabSim }) {
       <CampusOutdoor />
       <PlazaCore />
       <CampusBuildings sim={sim} />
+      <CampusFacades />
     </group>
   );
 }
