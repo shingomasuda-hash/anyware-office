@@ -15,13 +15,17 @@ import { EMPTY_BOARD, type BoardData } from "./boardTypes";
  * Nothing private crosses this line — only what is already shown in the
  * area panels to the same signed-in member.
  */
-export function useBoardData(): { board: BoardData; joinable: JoinableMeeting | null } {
+export function useBoardData(): {
+  board: BoardData;
+  joinable: JoinableMeeting | null;
+  joinables: JoinableMeeting[];
+} {
   const state = useOfficeDataContext();
   return useMemo(
     () =>
       state.status === "ready"
         ? deriveBoard(state.data, new Date())
-        : { board: EMPTY_BOARD, joinable: null },
+        : { board: EMPTY_BOARD, joinable: null, joinables: [] },
     [state],
   );
 }

@@ -120,6 +120,28 @@ function paving(): THREE.Texture {
 }
 
 /**
+ * Planting palettes. One green over a whole campus reads as a texture,
+ * not as landscape; four, rotated around the ring, read as planting
+ * that somebody chose. The blooms are the one place outdoors where a
+ * colour is allowed to be fully saturated.
+ */
+const planting = [
+  { bed: "#6f9a6a", canopy: "#77a271", bloom: "#e8a0b8" },
+  { bed: "#7fa86b", canopy: "#8fb573", bloom: "#f0c46a" },
+  { bed: "#5f9483", canopy: "#6ba392", bloom: "#c48ce0" },
+  { bed: "#88a45f", canopy: "#6d9668", bloom: "#e88f6a" },
+].map((p) => ({
+  bed: new THREE.MeshStandardMaterial({ color: p.bed, roughness: 0.95 }),
+  canopy: new THREE.MeshStandardMaterial({ color: p.canopy, roughness: 0.95 }),
+  bloom: new THREE.MeshStandardMaterial({ color: p.bloom, roughness: 0.8 }),
+}));
+
+/** A district colour washed toward white — colour you notice second. */
+function pale(hex: string, toward: number): string {
+  return `#${new THREE.Color(hex).lerp(new THREE.Color("#ffffff"), toward).getHexString()}`;
+}
+
+/**
  * A stone material for a surface of a known size, so the slabs keep
  * the same pitch whatever shape they are laid on. The figure surfaces
  * — plaza disc, ring, approaches — carry their own UVs from 0 to 1,
@@ -211,11 +233,27 @@ function Circulation() {
     return Math.min(...rs) - 7;
   }, [doors, c]);
   const plazaMat = useMemo(() => stone("#f4f6f8", 0.72, PLAZA_RX * 2, PLAZA_RZ * 2), []);
+  // Each approach carries its district's colour, washed almost to white.
+  // Wayfinding you read with your feet: from the middle of the plaza you
+  // can see which path goes where before any sign is legible.
+  const doorMats = useMemo(
+    () =>
+      new Map(
+        doors.map(({ b }) => [
+          b.id,
+          {
+            lane: stone(pale(b.accent, 0.56), 0.8, 5.4, 5.4),
+            court: stone(pale(b.accent, 0.7), 0.74, 18, 18),
+          },
+        ]),
+      ),
+    [doors],
+  );
   const ringMat = useMemo(
     () => stone("#eceff3", 0.8, (ringR + 3.2) * 2, (ringR + 3.2) * 2),
     [ringR],
   );
-  const laneMat = useMemo(() => stone("#eceff3", 0.8, 5.4, 5.4), []);
+
   return (
     <group>
       {/* paved heart */}
@@ -240,7 +278,7 @@ function Circulation() {
         return (
           <mesh
             key={b.id}
-            material={laneMat}
+            material={doorMats.get(b.id)!.lane}
             rotation={[-Math.PI / 2, 0, ang]}
             position={[mid.x, 0.022, mid.y]}
           >
@@ -259,7 +297,7 @@ function Circulation() {
       {doors.map(({ b, p }) => (
         <mesh
           key={b.id}
-          material={plazaMat}
+          material={doorMats.get(b.id)!.court}
           rotation-x={-Math.PI / 2}
           position={[p.x, 0.028, p.y]}
         >
@@ -312,7 +350,21 @@ function PlazaLandscape() {
    * is the height that puts something human-made above head height
    * without competing with the buildings.
    */
-  const masts = useMemo(() => bollards.filter((_, i) => i % 4 === 0), [bollards]);
+  const masts = useMemo(() => {
+    // ...but never on an entrance axis. Every fourth bollard put one
+    // squarely in front of a door, and a seven-metre post through the
+    // middle of an approach is the one place it must not be.
+    const bearings = doors.map(({ p }) => Math.atan2(p.x - c.x, p.y - c.y));
+    const clear = (x: number, z: number) => {
+      const a = Math.atan2(x - c.x, z - c.y);
+      return bearings.every((d) => {
+        let dd = Math.abs(a - d) % (Math.PI * 2);
+        if (dd > Math.PI) dd = Math.PI * 2 - dd;
+        return dd > 0.22; // ~13 degrees either side of the approach
+      });
+    };
+    return bollards.filter(([x, z], i) => i % 4 === 0 && clear(x, z));
+  }, [bollards, doors, c]);
   const post = useRef<THREE.InstancedMesh>(null);
   const cap = useRef<THREE.InstancedMesh>(null);
   const mast = useRef<THREE.InstancedMesh>(null);
@@ -360,15 +412,32 @@ function PlazaLandscape() {
           <mesh material={LUX.leafDeep} position={[0, 0.5, 0]} rotation-x={-Math.PI / 2}>
             <planeGeometry args={[6.7, 2.9]} />
           </mesh>
-          <mesh material={LUX.leaf} position={[0, 0.72, 0]}>
+          <mesh material={planting[i % planting.length].bed} position={[0, 0.72, 0]}>
             <boxGeometry args={[6.2, 0.46, 2.3]} />
           </mesh>
+          {/* a flowering row along the front of the bed — the campus is
+              not all one green, and this is where colour is allowed to
+              be saturated, because planting is where it comes from */}
+          {[-2.4, -1.6, -0.8, 0, 0.8, 1.6, 2.4].map((bx, k) => (
+            <mesh
+              key={bx}
+              material={planting[(i + k) % planting.length].bloom}
+              position={[bx, 0.99, 0.86 + ((k % 2) - 0.5) * 0.3]}
+              castShadow
+            >
+              <sphereGeometry args={[0.26, 8, 6]} />
+            </mesh>
+          ))}
           {[-2.1, 2.1].map((tx) => (
             <group key={tx} position={[tx, 0, 0]}>
               <mesh material={LUX.trunk} position={[0, 2.0, 0]} castShadow>
                 <cylinderGeometry args={[0.09, 0.14, 3.6, 8]} />
               </mesh>
-              <mesh material={LUX.leaf} position={[0, 4.3, 0]} castShadow>
+              <mesh
+                material={planting[(i + (tx > 0 ? 1 : 0)) % planting.length].canopy}
+                position={[0, 4.3, 0]}
+                castShadow
+              >
                 <sphereGeometry args={[1.7, 12, 9]} />
               </mesh>
             </group>

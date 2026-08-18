@@ -20,6 +20,19 @@ export type TableMenuItem = Tables<"table_menu_items">;
 export type GreenDeal = Tables<"green_deals">;
 export type LocalProject = Tables<"local_projects">;
 export type ExecutiveMetric = Tables<"executive_metrics">;
+export type ResourceLink = Tables<"resource_links">;
+
+/**
+ * Links live behind a migration the office may not have applied yet
+ * (supabase/migrations/step5_agenda_links.sql). A missing table is a
+ * SETUP state, not a failure: everything else on the page keeps
+ * working and the desk says plainly what is not there yet.
+ */
+export interface ResourceLinkResult {
+  links: ResourceLink[];
+  /** true when the table does not exist yet */
+  pending: boolean;
+}
 
 export interface CrudRepository<Row, Insert, Update> {
   list(): Promise<Row[]>;
@@ -104,4 +117,15 @@ export interface Repositories {
     TablesInsert<"executive_metrics">,
     TablesUpdate<"executive_metrics">
   >;
+  /**
+   * Links to documents the office keeps elsewhere. `list` is tolerant
+   * of the table not existing yet; the writes are not, because you can
+   * only be adding a link if the table is already there.
+   */
+  resourceLinks: {
+    list(): Promise<ResourceLinkResult>;
+    create(input: TablesInsert<"resource_links">): Promise<ResourceLink>;
+    update(id: string, input: TablesUpdate<"resource_links">): Promise<ResourceLink>;
+    remove(id: string): Promise<void>;
+  };
 }

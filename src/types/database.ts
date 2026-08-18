@@ -16,6 +16,88 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      // Created by supabase/migrations/step5_agenda_links.sql. Until
+      // that migration is applied the table is absent and reads return
+      // a "table not found" error, which the repository turns into an
+      // empty list plus a flag rather than an office-wide failure.
+      agenda_items: {
+        Row: {
+          id: string;
+          meeting_id: string;
+          position: number;
+          title: string;
+          detail: string | null;
+          owner_id: string | null;
+          minutes: number | null;
+          decision: string | null;
+          status: "open" | "in_progress" | "done" | "carried_over";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          meeting_id: string;
+          position?: number;
+          title: string;
+          detail?: string | null;
+          owner_id?: string | null;
+          minutes?: number | null;
+          decision?: string | null;
+          status?: "open" | "in_progress" | "done" | "carried_over";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          meeting_id?: string;
+          position?: number;
+          title?: string;
+          detail?: string | null;
+          owner_id?: string | null;
+          minutes?: number | null;
+          decision?: string | null;
+          status?: "open" | "in_progress" | "done" | "carried_over";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      resource_links: {
+        Row: {
+          id: string;
+          label: string;
+          url: string;
+          kind: "sheet" | "doc" | "folder" | "form" | "other";
+          section_id: string | null;
+          project_id: string | null;
+          meeting_id: string | null;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          label: string;
+          url: string;
+          kind?: "sheet" | "doc" | "folder" | "form" | "other";
+          section_id?: string | null;
+          project_id?: string | null;
+          meeting_id?: string | null;
+          position?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          label?: string;
+          url?: string;
+          kind?: "sheet" | "doc" | "folder" | "form" | "other";
+          section_id?: string | null;
+          project_id?: string | null;
+          meeting_id?: string | null;
+          position?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       announcements: {
         Row: {
           id: string;

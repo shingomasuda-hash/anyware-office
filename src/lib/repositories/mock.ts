@@ -23,6 +23,7 @@ import type {
   Profile,
   Project,
   Repositories,
+  ResourceLink,
   SectionMetric,
   TableMenuItem,
   TableStoreMetric,
@@ -322,6 +323,21 @@ export function createMockRepositories(): Repositories {
     ...input,
   }));
 
+  const resourceLinks = new InMemoryCrud<
+    ResourceLink,
+    TablesInsert<"resource_links">,
+    TablesUpdate<"resource_links">
+  >([], (input) => ({
+    id: demoId("link"),
+    kind: "sheet",
+    section_id: null,
+    project_id: null,
+    meeting_id: null,
+    position: 0,
+    created_at: nowIso(),
+    ...input,
+  }));
+
   return {
     source: "DEMO",
     profiles: {
@@ -342,5 +358,13 @@ export function createMockRepositories(): Repositories {
     greenDeals,
     localProjects,
     executiveMetrics,
+    resourceLinks: {
+      // The demo seed carries no fictional URLs, in line with every
+      // other table here — an empty desk, not an invented one.
+      list: async () => ({ links: await resourceLinks.list(), pending: false }),
+      create: (input) => resourceLinks.create(input),
+      update: (id, input) => resourceLinks.update(id, input),
+      remove: (id) => resourceLinks.remove(id),
+    },
   };
 }

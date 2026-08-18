@@ -360,7 +360,14 @@ function Lights({ sim }: { sim: LabSim }) {
           key={b.id}
           position={[u(b.center.x), 3.0, u(b.center.y)]}
           intensity={190}
-          color={ROOM_THEMES[b.id].light}
+          // The fill carries a quarter of the district's own colour.
+          // Ten rooms lit by the same near-white read as one building
+          // with ten identical halls; a tinted key is the cheapest way
+          // for a room to feel like somewhere in particular.
+          color={new THREE.Color(ROOM_THEMES[b.id].light).lerp(
+            new THREE.Color(ROOM_THEMES[b.id].accent),
+            0.38,
+          )}
           distance={36}
           decay={2}
         />

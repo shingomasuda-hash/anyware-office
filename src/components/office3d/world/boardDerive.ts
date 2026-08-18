@@ -45,7 +45,7 @@ function joinUrl(m: Meeting, rooms: Map<string, MeetingRoom>): string {
 export function deriveBoard(
   data: Pick<OfficeData, "meetings" | "meetingRooms" | "projects">,
   now: Date,
-): { board: BoardData; joinable: JoinableMeeting | null } {
+): { board: BoardData; joinable: JoinableMeeting | null; joinables: JoinableMeeting[] } {
   const { meetings, meetingRooms, projects } = data;
   const rooms = new Map(meetingRooms.map((r) => [r.id, r]));
 
@@ -81,21 +81,15 @@ export function deriveBoard(
   const t = now.getTime();
   const candidates = today.filter((m) => joinUrl(m, rooms) !== "" && Date.parse(m.end_at) >= t);
   const running = candidates.find((m) => Date.parse(m.start_at) <= t);
-  const next = running ?? candidates[0] ?? null;
+  const ordered = running ? [running, ...candidates.filter((m) => m !== running)] : candidates;
+  const joinables: JoinableMeeting[] = ordered.map((m) => ({
+    id: m.id,
+    title: m.title,
+    room: m.meeting_room_id ? (rooms.get(m.meeting_room_id)?.name ?? "Meeting") : "Meeting",
+    startAt: m.start_at,
+    endAt: m.end_at,
+    url: joinUrl(m, rooms),
+  }));
 
-  return {
-    board,
-    joinable: next
-      ? {
-          id: next.id,
-          title: next.title,
-          room: next.meeting_room_id
-            ? (rooms.get(next.meeting_room_id)?.name ?? "Meeting")
-            : "Meeting",
-          startAt: next.start_at,
-          endAt: next.end_at,
-          url: joinUrl(next, rooms),
-        }
-      : null,
-  };
+  return { board, joinable: joinables[0] ?? null, joinables };
 }

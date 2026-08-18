@@ -30,6 +30,9 @@ function row<T>(op: string, data: T | null, error: DbError | null): T {
 
 const db = () => getSupabaseClient();
 
+/** PostgREST codes for "that relation does not exist". */
+const MISSING_TABLE = new Set(["PGRST205", "PGRST202", "42P01"]);
+
 export function createSupabaseRepositories(): Repositories {
   return {
     source: "SUPABASE",
@@ -609,6 +612,44 @@ export function createSupabaseRepositories(): Repositories {
           .delete()
           .eq("id", id);
         if (error) throw wrap("executive_metrics.remove", error);
+      },
+    },
+
+    resourceLinks: {
+      async list() {
+        const { data, error } = await db()
+          .from("resource_links")
+          .select("*")
+          .order("position", { ascending: true });
+        if (error) {
+          // The table arrives with a migration the office applies by
+          // hand. Until then this is a setup state, not a fault: say so
+          // and let every other part of the office carry on.
+          if (MISSING_TABLE.has(error.code ?? "")) return { links: [], pending: true };
+          throw wrap("resource_links.list", error);
+        }
+        return { links: data ?? [], pending: false };
+      },
+      async create(input: TablesInsert<"resource_links">) {
+        const { data, error } = await db()
+          .from("resource_links")
+          .insert(input)
+          .select("*")
+          .single();
+        return row("resource_links.create", data, error);
+      },
+      async update(id, input: TablesUpdate<"resource_links">) {
+        const { data, error } = await db()
+          .from("resource_links")
+          .update(input)
+          .eq("id", id)
+          .select("*")
+          .single();
+        return row("resource_links.update", data, error);
+      },
+      async remove(id) {
+        const { error } = await db().from("resource_links").delete().eq("id", id);
+        if (error) throw wrap("resource_links.remove", error);
       },
     },
   };

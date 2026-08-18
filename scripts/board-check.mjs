@@ -38,9 +38,25 @@ async function bridge(ctx) {
             created_at: iso(now), updated_at: iso(now) },
         ]));
       }
+      // FAKE_LINKS=1 rehearses the desk as it will look once the
+      // resource_links migration has been applied. Read-only, nothing
+      // is written to the office database.
+      let forceOk = false;
+      if (process.env.FAKE_LINKS && /\/rest\/v1\/resource_links/.test(r.url()) && r.method() === "GET") {
+        forceOk = true;
+        body = Buffer.from(JSON.stringify([
+          { id: "l1", label: "案件管理シート", url: "https://docs.google.com/spreadsheets/d/x", kind: "sheet",
+            section_id: null, project_id: null, meeting_id: "fake-1", position: 0, created_at: new Date(0).toISOString() },
+          { id: "l2", label: "議事録フォルダ", url: "https://drive.google.com/drive/folders/y", kind: "folder",
+            section_id: null, project_id: null, meeting_id: null, position: 1, created_at: new Date(0).toISOString() },
+          { id: "l3", label: "稼働報告フォーム", url: "https://docs.google.com/forms/d/z", kind: "form",
+            section_id: null, project_id: null, meeting_id: null, position: 2, created_at: new Date(0).toISOString() },
+        ]));
+      }
       const h = {};
       resp.headers.forEach((v,k)=>{ if(!["content-encoding","transfer-encoding","content-length","connection"].includes(k)) h[k]=v; });
-      await route.fulfill({ status: resp.status, headers: h, body });
+      if (forceOk) h["content-type"] = "application/json; charset=utf-8";
+      await route.fulfill({ status: forceOk ? 200 : resp.status, headers: h, body });
     } catch { await route.abort(); }
   });
   await ctx.routeWebSocket(/supabase\.co/, (ws) => {
@@ -112,6 +128,13 @@ await A.screenshot({ path: `${OUT}/02-meeting-seated.png` });
 
 const chip = A.locator('[data-testid="checked-in"]');
 console.log("checked in:", (await chip.count()) ? await chip.textContent() : "ABSENT");
+const desk = A.locator('[data-testid="seat-desk"]');
+console.log("seat desk:", (await desk.count()) ? "present" : "ABSENT");
+if (await desk.count()) {
+  console.log("  desk text:", (await desk.innerText()).replace(/\n+/g, " | ").slice(0, 400));
+}
+const chips = A.locator('[data-testid="desk-link"]');
+console.log("desk links:", await chips.count());
 const join = A.locator('[data-testid="join-meeting"]');
 if (await join.count()) {
   console.log("JOIN button:", await join.textContent());

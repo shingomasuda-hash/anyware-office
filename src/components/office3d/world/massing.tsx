@@ -10,7 +10,7 @@ import { type Building, BUILDINGS } from "./campus";
 import { MAT, makeTextTexture } from "./materials";
 import { ROOM_THEMES } from "./themes";
 import { fu, u } from "./scale";
-import { LUX } from "./lux";
+import { Cove } from "./kit";
 import { LUXURY_AREAS, LuxuryInterior } from "./interiors";
 import { type BoardData, EMPTY_BOARD } from "./boards";
 
@@ -197,6 +197,38 @@ function InteriorMassing({ b }: { b: Building }) {
  */
 const richDistance: Record<string, number> = {};
 
+/**
+ * The district's colour, traced once around the inside of the room.
+ *
+ * A single line on the floor does more for identity than tinting every
+ * surface: it follows the shape of the space, it tells you which
+ * district you are standing in the moment you look down, and it leaves
+ * the walls and ceilings pearl. Added here rather than inside each
+ * interior so that every room gets it from one decision.
+ */
+function DistrictTrim({ b }: { b: Building }) {
+  const trim = useMemo(() => {
+    const c = new THREE.Color(ROOM_THEMES[b.id].accent).lerp(
+      new THREE.Color("#ffffff"),
+      0.34,
+    );
+    return new THREE.MeshStandardMaterial({ color: c, roughness: 0.5, metalness: 0.05 });
+  }, [b.id]);
+  const hw = u(b.size.w) / 2;
+  const hd = u(b.size.h) / 2;
+  return (
+    <Cove
+      w={hw * 2 - 2.2}
+      d={hd * 2 - 2.2}
+      y={0.055}
+      t={0.16}
+      r={1.4}
+      faceDown={false}
+      mat={trim}
+    />
+  );
+}
+
 function AreaInterior({ b, sim, board }: { b: Building; sim: LabSim; board: BoardData }) {
   const camera = useThree((s) => s.camera);
   const full = useRef<THREE.Group>(null);
@@ -224,6 +256,7 @@ function AreaInterior({ b, sim, board }: { b: Building; sim: LabSim; board: Boar
     <group>
       {rich ? (
         <group ref={full} visible={false}>
+          <DistrictTrim b={b} />
           <LuxuryInterior id={b.id} w={b.size.w} d={b.size.h} board={board} />
         </group>
       ) : null}
@@ -256,17 +289,54 @@ function EntranceMark({ b, canopyY }: { b: Building; canopyY: number }) {
     () => new THREE.MeshBasicMaterial({ color: b.accent, toneMapped: false }),
     [b.accent],
   );
+  /**
+   * The cove under the canopy and the wash it throws on the approach
+   * take the district's colour rather than a generic warm white. Ten
+   * identical pools of light told you nothing; ten different ones tell
+   * you which door you are walking toward from thirty metres out.
+   */
+  const glow = useMemo(() => {
+    const c = new THREE.Color(b.accent).lerp(new THREE.Color("#ffffff"), 0.42);
+    return new THREE.MeshBasicMaterial({ color: c, toneMapped: false });
+  }, [b.accent]);
+  const canopyMat = useMemo(() => {
+    const c = new THREE.Color(b.accent).lerp(new THREE.Color("#ffffff"), 0.5);
+    return new THREE.MeshStandardMaterial({ color: c, roughness: 0.55 });
+  }, [b.accent]);
+  const bandMat = useMemo(() => {
+    const c = new THREE.Color(b.accent).lerp(new THREE.Color("#ffffff"), 0.14);
+    return new THREE.MeshStandardMaterial({ color: c, roughness: 0.42, metalness: 0.05 });
+  }, [b.accent]);
+  const wash = useMemo(() => {
+    const c = new THREE.Color(b.accent).lerp(new THREE.Color("#ffffff"), 0.68);
+    return new THREE.MeshBasicMaterial({
+      color: c,
+      toneMapped: false,
+      transparent: true,
+      opacity: 0.5,
+    });
+  }, [b.accent]);
   return (
     <group>
       {/* canopy over the opening, with the light hidden under it — the
           threshold reads as a lit room you are about to step into (§7) */}
-      <Slab y={canopyY} z={hd + 1.1} w={9.4} h={0.28} d={3.4} mat={MAT.resinWhite} />
-      <mesh material={LUX.coveSoft} position={[0, canopyY - 0.15, hd + 1.1]} rotation-x={Math.PI / 2}>
+      <Slab y={canopyY} z={hd + 1.1} w={9.4} h={0.28} d={3.4} mat={canopyMat} />
+      <mesh material={glow} position={[0, canopyY - 0.15, hd + 1.1]} rotation-x={Math.PI / 2}>
         <planeGeometry args={[7.4, 1.5]} />
       </mesh>
       {[-4.4, 4.4].map((x) => (
         <Slab key={x} x={x} y={canopyY / 2} z={hd + 2.5} w={0.22} h={canopyY} d={0.22} mat={MAT.matteSilver} />
       ))}
+      {/* the district band: the widest coloured surface on the building,
+          at the height the eye lands on when you walk up to the door */}
+      <Slab
+        y={canopyY + 2.42}
+        z={hd + 0.1}
+        w={u(b.size.w) - 1.4}
+        h={0.34}
+        d={0.18}
+        mat={bandMat}
+      />
       {/* name board */}
       <mesh material={signMat} position={[0, canopyY + 1.15, hd + 0.16]}>
         <planeGeometry args={[6.4, 1.87]} />
@@ -279,7 +349,7 @@ function EntranceMark({ b, canopyY }: { b: Building; canopyY: number }) {
       <mesh material={accent} rotation-x={-Math.PI / 2} position={[0, 0.05, hd + 1.6]}>
         <planeGeometry args={[7.5, 0.5]} />
       </mesh>
-      <mesh material={LUX.coveSoft} rotation-x={-Math.PI / 2} position={[0, 0.042, hd + 3.4]}>
+      <mesh material={wash} rotation-x={-Math.PI / 2} position={[0, 0.042, hd + 3.4]}>
         <planeGeometry args={[8.2, 4.6]} />
       </mesh>
     </group>

@@ -39,6 +39,25 @@ const FIN = new THREE.MeshStandardMaterial({
   metalness: 0.14,
 });
 
+/**
+ * The cap is the one band of a facade that is seen from everywhere —
+ * across the plaza, from the ring path, from the air. Painting it in
+ * the district's own colour is what turns ten white sheds into ten
+ * addressable buildings. It is a TINT, not a stripe: mixed most of the
+ * way to white, so the campus stays pearl and the colour is the thing
+ * you notice second, not first.
+ */
+const CAP = new THREE.MeshStandardMaterial({
+  color: "#ffffff",
+  roughness: 0.42,
+  metalness: 0.06,
+});
+
+/** district colour, softened toward white by `toward`. */
+function tint(hex: string, toward: number): THREE.Color {
+  return new THREE.Color(hex).lerp(new THREE.Color("#ffffff"), toward);
+}
+
 interface Piece {
   x: number;
   y: number;
@@ -47,6 +66,7 @@ interface Piece {
   sy: number;
   sz: number;
   rotY: number;
+  color?: THREE.Color;
 }
 
 /** Walls of one building, in that building's local metre space. */
@@ -110,6 +130,7 @@ function buildPieces() {
         sy: CAP_H,
         sz: w.d + 0.5,
         rotY,
+        color: tint(b.accent, 0.18),
       });
 
       // fins march along the wall's long axis, standing just proud of
@@ -154,9 +175,11 @@ function write(mesh: THREE.InstancedMesh | null, pieces: Piece[]) {
     s.set(it.sx, it.sy, it.sz);
     m.compose(p, q, s);
     mesh.setMatrixAt(i, m);
+    if (it.color) mesh.setColorAt(i, it.color);
   });
   mesh.count = pieces.length;
   mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 }
 
 /**
@@ -229,7 +252,7 @@ function FacadesImpl() {
       <instancedMesh
         ref={capRef}
         args={[undefined, undefined, caps.length]}
-        material={LUX.pearl}
+        material={CAP}
         castShadow
         receiveShadow
       >

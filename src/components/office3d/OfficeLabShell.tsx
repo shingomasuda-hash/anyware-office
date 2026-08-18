@@ -17,8 +17,9 @@ import ProfileEditor from "@/components/office/ProfileEditor";
 import RealtimeHUD from "@/components/office/RealtimeHUD";
 import { LabSim } from "./LabSim";
 import type { Seat } from "./world/seats";
-import { useBoardData } from "./world/officeBoard";
 import Office3DCanvas from "./Office3DCanvas";
+import SeatDesk from "./SeatDesk";
+import { useBoardData } from "./world/officeBoard";
 import type { ComponentProps } from "react";
 
 // /office-lab shell (STEP 4.9). Reuses the STEP 3/4 hooks + HUD stack
@@ -97,28 +98,6 @@ class CanvasErrorBoundary extends Component<
 function LiveCanvas(props: Omit<ComponentProps<typeof Office3DCanvas>, "board">) {
   const { board } = useBoardData();
   return <Office3DCanvas {...props} board={board} />;
-}
-
-/**
- * JOIN ZOOM, offered only once you are actually sitting in the meeting
- * pavilion. Sitting down at the table is the moment the invitation
- * makes sense; everywhere else it is noise.
- */
-function JoinMeetingButton({ seat }: { seat: Seat }) {
-  const { joinable } = useBoardData();
-  if (seat.areaId !== "MEETING" || !joinable) return null;
-  return (
-    <a
-      href={joinable.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      data-testid="join-meeting"
-      aria-label={`Join ${joinable.title} in ${joinable.room}`}
-      className="pointer-events-auto rounded-full border border-sky-300/40 bg-[#0b6ec4]/90 px-5 py-2.5 text-xs font-semibold tracking-[0.16em] text-white shadow-[0_2px_14px_rgba(8,14,24,0.45)] backdrop-blur transition-colors hover:bg-[#0d80e0]"
-    >
-      JOIN · {joinable.title.length > 24 ? `${joinable.title.slice(0, 24)}…` : joinable.title}
-    </a>
-  );
 }
 
 export default function OfficeLabShell() {
@@ -386,45 +365,31 @@ export default function OfficeLabShell() {
           </Link>
         </div>
 
-        {!overlayOpen && (seat.seated || seat.nearby) ? (
+        {/* Sitting down opens the desk: the meeting you are here for and
+            the documents the office keeps, without standing up again. */}
+        {!overlayOpen && seat.seated ? (
+          <SeatDesk seat={seat.seated} onStand={() => sim.stand()} isMobile={isMobile} />
+        ) : null}
+
+        {!overlayOpen && !seat.seated && seat.nearby ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-24 z-30 flex flex-col items-center gap-2 px-4 md:bottom-28">
-            {seat.seated ? (
-              <div
-                data-testid="checked-in"
-                data-seat-id={seat.seated.id}
-                className="rounded-full border border-emerald-300/30 bg-[#0d1420]/80 px-3 py-1 text-[11px] font-semibold tracking-[0.18em] text-emerald-200 backdrop-blur"
-              >
-                CHECKED IN · {seat.seated.label.toUpperCase()}
-              </div>
-            ) : null}
-            {seat.seated ? <JoinMeetingButton seat={seat.seated} /> : null}
             <button
               type="button"
-              disabled={!seat.seated && seat.taken}
+              disabled={seat.taken}
               data-testid="seat-action"
               aria-label={
-                seat.seated
-                  ? "Stand up"
-                  : seat.taken
-                    ? `${seat.nearby?.label} is occupied`
-                    : `Sit and check in at ${seat.nearby?.label}`
+                seat.taken
+                  ? `${seat.nearby.label} is occupied`
+                  : `Sit and check in at ${seat.nearby.label}`
               }
-              onClick={() => (seat.seated ? sim.stand() : sim.sit())}
+              onClick={() => sim.sit()}
               className={
-                !seat.seated && seat.taken
+                seat.taken
                   ? "pointer-events-auto rounded-full border border-zinc-400/25 bg-[#0d1420]/70 px-5 py-2.5 text-xs font-semibold tracking-[0.16em] text-zinc-400 backdrop-blur"
                   : "pointer-events-auto rounded-full border border-cyan-200/30 bg-[#0d1420]/85 px-5 py-2.5 text-xs font-semibold tracking-[0.16em] text-cyan-100 shadow-[0_2px_14px_rgba(8,14,24,0.45)] backdrop-blur transition-colors hover:bg-[#16233a]/90"
               }
             >
-              {seat.seated
-                ? isMobile
-                  ? "STAND"
-                  : "E · STAND UP"
-                : seat.taken
-                  ? "OCCUPIED"
-                  : isMobile
-                    ? "SIT"
-                    : `E · SIT & CHECK IN`}
+              {seat.taken ? "OCCUPIED" : isMobile ? "SIT" : "E · SIT & CHECK IN"}
             </button>
           </div>
         ) : null}
