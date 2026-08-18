@@ -12,6 +12,7 @@ import { ROOM_THEMES } from "./themes";
 import { fu, u } from "./scale";
 import { LUX } from "./lux";
 import { LUXURY_AREAS, LuxuryInterior } from "./interiors";
+import { type BoardData, EMPTY_BOARD } from "./boards";
 
 /**
  * M1 WHITE MASSING MODEL (§3).
@@ -196,7 +197,7 @@ function InteriorMassing({ b }: { b: Building }) {
  */
 const richDistance: Record<string, number> = {};
 
-function AreaInterior({ b, sim }: { b: Building; sim: LabSim }) {
+function AreaInterior({ b, sim, board }: { b: Building; sim: LabSim; board: BoardData }) {
   const camera = useThree((s) => s.camera);
   const full = useRef<THREE.Group>(null);
   const lite = useRef<THREE.Group>(null);
@@ -223,7 +224,7 @@ function AreaInterior({ b, sim }: { b: Building; sim: LabSim }) {
     <group>
       {rich ? (
         <group ref={full} visible={false}>
-          <LuxuryInterior id={b.id} w={b.size.w} d={b.size.h} />
+          <LuxuryInterior id={b.id} w={b.size.w} d={b.size.h} board={board} />
         </group>
       ) : null}
       <group ref={lite}>
@@ -287,7 +288,7 @@ function EntranceMark({ b, canopyY }: { b: Building; canopyY: number }) {
 
 // ── the ten silhouettes ──────────────────────────────────────────────
 
-function Massing({ b, sim }: { b: Building; sim: LabSim }) {
+function Massing({ b, sim, board }: { b: Building; sim: LabSim; board: BoardData }) {
   const hw = u(b.size.w) / 2;
   const hd = u(b.size.h) / 2;
   const H = b.height;
@@ -300,7 +301,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={6.4} mat={MAT.wallPaint} />
-          <AreaInterior b={b} sim={sim} />
+          <AreaInterior b={b} sim={sim} board={board} />
           {[-hw + 1.6, hw - 1.6].map((x) => (
             <Slab key={x} x={x} y={H / 2} z={hd - 2.2} w={2.4} h={H} d={2.4} mat={MAT.wallPaint} />
           ))}
@@ -322,7 +323,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={5.2} mat={MAT.wallWarm} />
-          <AreaInterior b={b} sim={sim} />
+          <AreaInterior b={b} sim={sim} board={board} />
           <Roof b={b} sim={sim}>
             <Slab y={5.4} w={hw * 2 + 0.8} h={0.4} d={hd * 2 + 0.8} mat={deck} />
             {/* two barrel shells across the width */}
@@ -349,7 +350,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={6.2} mat={MAT.wallPaint} />
-          <AreaInterior b={b} sim={sim} />
+          <AreaInterior b={b} sim={sim} board={board} />
           <Roof b={b} sim={sim}>
             <Slab y={6.5} w={hw * 2 + 0.6} h={0.5} d={hd * 2 + 0.6} mat={deck} />
           </Roof>
@@ -393,7 +394,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={4.8} mat={MAT.wallWarm} />
-          <AreaInterior b={b} sim={sim} />
+          <AreaInterior b={b} sim={sim} board={board} />
           <Roof b={b} sim={sim}>
             <Slab y={7.4} w={hw * 2 + 9.0} h={0.62} d={hd * 2 + 7.0} mat={deck} />
             <Slab y={H - 1.2} w={hw * 1.2} h={2.4} d={hd * 1.0} mat={MAT.wallPaint} />
@@ -421,7 +422,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={1.15} mat={MAT.wallWarm} />
-          <AreaInterior b={b} sim={sim} />
+          <AreaInterior b={b} sim={sim} board={board} />
           <Roof b={b} sim={sim}>
             <Slab y={H - 0.7} w={hw * 2 + 3.6} h={0.45} d={hd * 2 + 3.0} mat={deck} />
             {[-hw * 0.5, 0, hw * 0.5].map((x) => (
@@ -451,7 +452,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={2.6} mat={MAT.wallWarm} />
-          <AreaInterior b={b} sim={sim} />
+          <AreaInterior b={b} sim={sim} board={board} />
           <Roof b={b} sim={sim}>
             {[-1, 0, 1].map((i) => (
               <mesh
@@ -474,7 +475,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={3.4} mat={MAT.wallWarm} />
-          <AreaInterior b={b} sim={sim} />
+          <AreaInterior b={b} sim={sim} board={board} />
           <Roof b={b} sim={sim}>
             {[0, 1, 2].map((i) => (
               <Slab
@@ -498,7 +499,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={5.6} mat={MAT.glassMeeting} />
-          <AreaInterior b={b} sim={sim} />
+          <AreaInterior b={b} sim={sim} board={board} />
           <Roof b={b} sim={sim}>
             <Slab y={5.9} w={hw * 2 + 1.8} h={0.36} d={hd * 2 + 1.8} mat={deck} />
             <mesh material={MAT.frost} position={[0, 7.0, 0]} castShadow>
@@ -515,7 +516,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={6.4} mat={MAT.wallPaint} />
-          <AreaInterior b={b} sim={sim} />
+          <AreaInterior b={b} sim={sim} board={board} />
           <Roof b={b} sim={sim}>
             <Slab y={5.3} w={hw * 2 + 0.6} h={0.4} d={hd * 2 + 0.6} mat={deck} />
             <Slab
@@ -540,7 +541,7 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
       return (
         <>
           <Shell b={b} height={2.6} mat={MAT.wallWarm} />
-          <AreaInterior b={b} sim={sim} />
+          <AreaInterior b={b} sim={sim} board={board} />
           <Roof b={b} sim={sim}>
             <Slab y={(H + 2.9) / 2} w={hw * 2 + 1.0} h={H - 2.9} d={hd * 2 + 1.0} mat={MAT.wallPaint} />
             <Slab y={H + 0.25} w={hw * 2 + 1.6} h={0.4} d={hd * 2 + 1.6} mat={deck} />
@@ -565,12 +566,18 @@ function Massing({ b, sim }: { b: Building; sim: LabSim }) {
   }
 }
 
-function BuildingsImpl({ sim }: { sim: LabSim }) {
+function BuildingsImpl({
+  sim,
+  board = EMPTY_BOARD,
+}: {
+  sim: LabSim;
+  board?: BoardData;
+}) {
   return (
     <group>
       {BUILDINGS.map((b) => (
         <BuildingFrame key={b.id} b={b}>
-          <Massing b={b} sim={sim} />
+          <Massing b={b} sim={sim} board={board} />
         </BuildingFrame>
       ))}
     </group>

@@ -7,6 +7,7 @@ import type { LabSim } from "../LabSim";
 import { CAMPUS_RADIUS, canonicalToCampus, PLAZA_CENTER } from "./campus";
 import { CampusBuildings } from "./massing";
 import { CampusFacades } from "./facades";
+import type { BoardData } from "./boards";
 import { CampusOutdoor } from "./outdoor";
 import { MetaCity, SkyDome } from "./effects";
 import { MAT } from "./materials";
@@ -128,7 +129,7 @@ function Treeline() {
   );
 }
 
-function CampusWorldImpl({ sim }: { sim: LabSim }) {
+function CampusWorldImpl({ sim, board }: { sim: LabSim; board?: BoardData }) {
   const c = useMemo(() => canonicalToCampus(PLAZA_CENTER.x, PLAZA_CENTER.y), []);
   const S = 3.2;
   // Far enough out to be a HORIZON. At a smaller scale the towers stood
@@ -153,7 +154,7 @@ function CampusWorldImpl({ sim }: { sim: LabSim }) {
       <Treeline />
       <CampusOutdoor />
       <PlazaCore />
-      <CampusBuildings sim={sim} />
+      <CampusBuildings sim={sim} board={board} />
       <CampusFacades />
     </group>
   );

@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Box, Cove, Plate, roundedRect } from "./kit";
 import { fillGradient, label, makeScreen } from "./lux";
+import { ARENA, ARENA_STOOLS, EDIT_PODS, FLOW, POD_STOOL, STUDIO } from "./signalLayout";
 
 /**
  * SIGNAL — CREATIVE MEDIA DISTRICT.
@@ -77,11 +78,10 @@ const SIG = {
   glow: emit("#f6f2ff", 0.22),
 } as const;
 
-/** The district's diagonal. Everything important is set on this angle. */
-const FLOW = -0.36; // ~20.6°
-
-/** Campaign Arena sits under the tower, so the void has somewhere to go. */
-const ARENA: [number, number] = [4.0, -4.0];
+// FLOW (the district's diagonal) and the positions of the arena, its
+// stools, the editing pods and the studio all come from ./signalLayout,
+// which the seat catalogue reads too — a stool and the seat you take on
+// it must not be two independent opinions about where it is.
 
 /* ── floor: material zones, not one big plane ────────────────────── */
 
@@ -352,8 +352,8 @@ function CampaignArena() {
       </mesh>
       <Box w={5.0} h={0.75} d={1.5} mat={SIG.metalDark} shadow={false} />
       {/* low stools, not office chairs */}
-      {[-2.3, -1.15, 0, 1.15, 2.3].map((x, i) => (
-        <group key={x} position={[x, 0, i % 2 ? 2.35 : -2.35]}>
+      {ARENA_STOOLS.map((st) => (
+        <group key={st.x} position={[st.x, 0, st.z]}>
           <mesh material={SIG.fabric} position={[0, 0.47, 0]} castShadow>
             <cylinderGeometry args={[0.28, 0.26, 0.14, 14]} />
           </mesh>
@@ -399,7 +399,7 @@ function ContentStudio() {
     [],
   );
   return (
-    <group position={[-7.0, 0, -9.2]} rotation-y={FLOW + 0.22}>
+    <group position={[STUDIO.x, 0, STUDIO.z]} rotation-y={STUDIO.rot}>
       {/* seamless cyclorama — the studio's defining curve */}
       <mesh material={SIG.pearl} position={[0, 2.1, -2.6]} receiveShadow>
         <cylinderGeometry args={[4.2, 4.2, 4.2, 24, 1, true, Math.PI * 0.12, Math.PI * 0.76]} />
@@ -488,7 +488,7 @@ function EditingPod({ x, z, rot, i }: { x: number; z: number; rot: number; i: nu
         <planeGeometry args={[2.24, 0.03]} />
       </mesh>
       {/* stool */}
-      <group position={[0, 0, 0.85]}>
+      <group position={[POD_STOOL.x, 0, POD_STOOL.z]}>
         <mesh material={SIG.fabric} position={[0, 0.48, 0]} castShadow>
           <cylinderGeometry args={[0.27, 0.25, 0.14, 14]} />
         </mesh>
@@ -503,14 +503,8 @@ function EditingPod({ x, z, rot, i }: { x: number; z: number; rot: number; i: nu
 function EditingDeck() {
   return (
     <group>
-      {[0, 1, 2, 3].map((i) => (
-        <EditingPod
-          key={i}
-          i={i}
-          x={-8.6 + i * 0.55}
-          z={-2.4 + i * 3.3}
-          rot={Math.PI / 2 + FLOW + i * 0.05}
-        />
+      {EDIT_PODS.map((p) => (
+        <EditingPod key={p.i} i={p.i} x={p.x} z={p.z} rot={p.rot} />
       ))}
     </group>
   );

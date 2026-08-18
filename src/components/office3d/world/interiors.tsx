@@ -25,6 +25,7 @@ import {
 } from "./kit";
 import { fillGradient, label, LUX, makeInfoPane, makeScreen, makeSignage } from "./lux";
 import { SignalDistrict } from "./signal";
+import { type BoardData, EMPTY_BOARD, makeMeetingBoard, makeProjectBoard } from "./boards";
 
 /**
  * LUXURY METAVERSE PASS — the five interiors.
@@ -280,23 +281,13 @@ function CollaborationIsland() {
   );
 }
 
-function StaffInterior({ hw, hd }: { hw: number; hd: number }) {
+function StaffInterior({ hw, hd, board }: { hw: number; hd: number; board: BoardData }) {
+  // The wall behind the workstations used to be a chart of nothing.
+  // It now carries the work actually in flight, which is the reason to
+  // look up from your desk at all.
   const live = useMemo(
-    () =>
-      makeScreen((ctx, w, h) => {
-        fillGradient(ctx, w, h, "#16222c", "#0f1820");
-        label(ctx, "STAFF", 54, 46, 58, "#e9f6ff", 700, 8);
-        label(ctx, "MEMBERS / PROFILE", 56, 122, 26, "#7fa3ba", 500, 8);
-        const bars = [0.5, 0.78, 0.42, 0.9, 0.64, 0.72, 0.36];
-        bars.forEach((v, i) => {
-          const x = 60 + i * 78;
-          ctx.fillStyle = i % 2 ? "#4fc0a0" : "#3f9fd0";
-          ctx.fillRect(x, h - 90 - v * 250, 46, v * 250);
-        });
-        ctx.fillStyle = "rgba(255,255,255,0.08)";
-        ctx.fillRect(56, h - 88, w - 112, 1);
-      }, 768, 512),
-    [],
+    () => makeProjectBoard(board.projects, "PROJECTS IN FLIGHT", "#4fc0a0"),
+    [board.projects],
   );
   const podScreen = useMemo(
     () =>
@@ -360,7 +351,7 @@ function StaffInterior({ hw, hd }: { hw: number; hd: number }) {
 
 /* ── MEETING — GLASS CONFERENCE PAVILION ─────────────────────────── */
 
-function ConferenceRoom() {
+function ConferenceRoom({ board }: { board: BoardData }) {
   const sweep = useRef<THREE.Mesh>(null);
   useFrame((state) => {
     if (sweep.current) {
@@ -368,28 +359,9 @@ function ConferenceRoom() {
       sweep.current.position.x = -3.2 + t * 6.4;
     }
   });
-  const deck = useMemo(
-    () =>
-      makeScreen((ctx, w, h) => {
-        fillGradient(ctx, w, h, "#f6f8fa", "#e6ebf0");
-        ctx.fillStyle = "#8e6cc0";
-        ctx.fillRect(64, 64, 6, 96);
-        label(ctx, "FY26 STRATEGY", 92, 62, 62, "#1e2732", 700, 5);
-        label(ctx, "ANYWARE GROUP · CONFIDENTIAL", 92, 138, 24, "#7c8b98", 500, 6);
-        const pts = [0.35, 0.5, 0.44, 0.62, 0.7, 0.85];
-        ctx.strokeStyle = "#8e6cc0";
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        pts.forEach((v, i) => {
-          const x = 100 + (i * (w - 200)) / (pts.length - 1);
-          const y = h - 90 - v * (h * 0.45);
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
-      }, 1024, 576),
-    [],
-  );
+  // the wall of the conference room shows the meetings you actually have
+  const deck = useMemo(() => makeMeetingBoard(board.meetings), [board.meetings]);
+
   return (
     <group position={[0, 0, -6.4]}>
       <FloorInlay w={12.4} d={8.4} r={0.6} mat={LUX.rug} />
@@ -428,9 +400,9 @@ function ConferenceRoom() {
   );
 }
 
-function MeetingInterior({ hw, hd }: { hw: number; hd: number }) {
+function MeetingInterior({ hw, hd, board }: { hw: number; hd: number; board: BoardData }) {
   const room = useMemo(() => makeSignage("MEETING", "GLASS CONFERENCE PAVILION", "#8e6cc0"), []);
-  const board = useMemo(
+  const roomStatus = useMemo(
     () =>
       makeInfoPane(
         "ROOM STATUS",
@@ -450,7 +422,7 @@ function MeetingInterior({ hw, hd }: { hw: number; hd: number }) {
       {/* daylight oculus over the waiting zone */}
       <Cove w={9.0} d={7.0} y={4.72} z={hd - 7.2} t={0.42} r={3.0} mat={LUX.coveSoft} />
 
-      <ConferenceRoom />
+      <ConferenceRoom board={board} />
 
       {/* two side pods, glazed so the pavilion stays transparent */}
       {[-1, 1].map((s) => (
@@ -480,7 +452,7 @@ function MeetingInterior({ hw, hd }: { hw: number; hd: number }) {
           <boxGeometry args={[2.2, 0.07, 0.9]} />
         </mesh>
         <Box w={0.4} h={1.03} d={0.6} mat={LUX.silver} shadow={false} />
-        <HoloPane w={1.9} h={1.25} y={2.5} mat={board} />
+        <HoloPane w={1.9} h={1.25} y={2.5} mat={roomStatus} />
       </group>
 
       {/* waiting zone under the oculus */}
@@ -506,11 +478,13 @@ export function LuxuryInterior({
   id,
   w,
   d,
+  board = EMPTY_BOARD,
 }: {
   id: string;
   /** footprint in canonical units */
   w: number;
   d: number;
+  board?: BoardData;
 }) {
   const hw = (w * M) / 2;
   const hd = (d * M) / 2;
@@ -518,9 +492,9 @@ export function LuxuryInterior({
     case "ENTRANCE":
       return <EntranceInterior hw={hw} hd={hd} />;
     case "STAFF":
-      return <StaffInterior hw={hw} hd={hd} />;
+      return <StaffInterior hw={hw} hd={hd} board={board} />;
     case "MEETING":
-      return <MeetingInterior hw={hw} hd={hd} />;
+      return <MeetingInterior hw={hw} hd={hd} board={board} />;
     case "SIGNAL":
       return <SignalDistrict hw={hw} hd={hd} />;
     default:

@@ -150,9 +150,15 @@ export class LabSim {
   }
 
   teleport(x: number, y: number) {
+    // Being moved bodily elsewhere ends the check-in. Otherwise the
+    // seat keeps claiming an avatar that is demonstrably not in it.
+    const wasSeated = this.seat !== null;
+    this.seat = null;
+    this.seatPhase = "idle";
     this.avatar.x = x;
     this.avatar.y = y;
     this.updateArea();
+    if (wasSeated) this.notifySeat();
   }
 
   /**

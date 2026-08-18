@@ -403,7 +403,7 @@ export function Desk({
 }) {
   return (
     <group position={[x, 0, z]} rotation-y={rotY}>
-      <Box w={w} h={0.05} d={d} y={0.72} mat={LUX.pearl} />
+      <Box w={w} h={0.05} d={d} y={0.72} mat={LUX.pearl} shadow={false} />
       {[-1, 1].map((s) => (
         <Box key={s} w={0.06} h={0.72} d={d - 0.14} x={(s * (w - 0.12)) / 2} y={0} mat={LUX.silver} shadow={false} />
       ))}
@@ -437,8 +437,11 @@ export function TaskChair({
 }) {
   return (
     <group position={[x, 0, z]} rotation-y={rotY}>
-      <Box w={0.5} h={0.08} d={0.48} y={0.44} mat={mat} />
-      <Box w={0.46} h={0.5} d={0.07} y={0.52} z={-0.22} mat={mat} />
+      {/* Nothing here casts: the only shadow-casting light is the sun,
+          and every one of these chairs stands under a roof. Casting
+          costs a second draw call each for a shadow no one can see. */}
+      <Box w={0.5} h={0.08} d={0.48} y={0.44} mat={mat} shadow={false} />
+      <Box w={0.46} h={0.5} d={0.07} y={0.52} z={-0.22} mat={mat} shadow={false} />
       <Box w={0.07} h={0.44} d={0.07} y={0} mat={LUX.silverDark} shadow={false} />
       <mesh material={LUX.silverDark} position={[0, 0.04, 0]}>
         <cylinderGeometry args={[0.28, 0.3, 0.05, 12]} />

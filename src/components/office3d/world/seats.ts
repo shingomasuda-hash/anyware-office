@@ -1,5 +1,15 @@
 import type { AreaId } from "@/types/office";
 import { BUILDING_BY_ID } from "./campus";
+import {
+  ARENA,
+  ARENA_STOOLS,
+  EDIT_PODS,
+  FLOW,
+  POD_STOOL,
+  spin,
+  STUDIO,
+  STUDIO_SEAT,
+} from "./signalLayout";
 
 /**
  * SEAT CHECK-IN — seat catalogue.
@@ -79,13 +89,16 @@ const STAFF_SEATS = build("STAFF", [
     faceX: 0,
     faceZ: -1,
   })),
+  // The workstation row is a group turned a quarter turn, so the chair
+  // lands one metre INSIDE the desk line: hw - 4.6 - 1.0. Authored at
+  // the desk's own x, the avatar sat in the desktop.
   ...[-1, 0, 1].map((i) => ({
     id: `STAFF-DESK-0${i + 2}`,
     zoneId: "WORKSTATION",
     label: `Workstation ${i + 2}`,
-    lx: 8.38,
+    lx: 7.37,
     lz: i * 3.4,
-    faceX: -1,
+    faceX: 1,
     faceZ: 0,
   })),
   ...[0, 1, 2, 3].map((i) => {
@@ -104,9 +117,12 @@ const STAFF_SEATS = build("STAFF", [
 
 /** MEETING — main conference table, plus the two glazed pods. */
 const MEETING_SEATS = build("MEETING", [
+  // These have to land ON the chairs the conference room actually
+  // models — same pitch, same offsets, same group origin. Authored on
+  // their own grid they put the avatar in the gaps between chairs.
   ...[-1, 1].flatMap((side) =>
-    [-1.5, -0.5, 0.5, 1.5].map((i) => ({
-      id: `MEETING-MAIN-${side > 0 ? "S" : "N"}${Math.abs(i * 2)}`,
+    [-2, -1, 0, 1, 2].map((i) => ({
+      id: `MEETING-MAIN-${side > 0 ? "S" : "N"}${i + 3}`,
       zoneId: "MAIN_ROOM",
       label: `Main Room seat`,
       lx: i * 1.28,
@@ -131,36 +147,57 @@ const MEETING_SEATS = build("MEETING", [
   ),
 ]);
 
-/** SIGNAL — editing pods, campaign arena stools, content studio. */
+/**
+ * SIGNAL — editing pods, campaign arena stools, content studio.
+ *
+ * Every anchor is DERIVED from the district's own layout rather than
+ * re-authored: the stool and the seat you take on it have to be the
+ * same place, and the district is set on a diagonal, so nothing here
+ * can be written down as a round number by hand.
+ */
 const SIGNAL_SEATS = build("SIGNAL", [
-  ...[0, 1, 2, 3].map((i) => ({
-    id: `SIGNAL-EDIT-0${i + 1}`,
-    zoneId: "EDITING_DECK",
-    label: `Editing Deck ${i + 1}`,
-    lx: -8.0 + i * 0.9,
-    lz: 5.6 - i * 2.6,
-    faceX: 0.35,
-    faceZ: -1,
-  })),
-  ...[0, 1, 2, 3].map((i) => ({
-    id: `SIGNAL-ARENA-0${i + 1}`,
-    zoneId: "CAMPAIGN_ARENA",
-    label: `Campaign Arena ${i + 1}`,
-    lx: 4.0 - 2.4 + i * 1.6,
-    lz: -4.0 + 2.4,
-    faceX: 0,
-    faceZ: -1,
-    seatHeight: 0.52,
-  })),
-  {
-    id: "SIGNAL-STUDIO-01",
-    zoneId: "CONTENT_STUDIO",
-    label: "Content Studio",
-    lx: -6.4,
-    lz: -8.0,
-    faceX: 0,
-    faceZ: -1,
-  },
+  ...EDIT_PODS.map((p) => {
+    const seat = spin(POD_STOOL.x, POD_STOOL.z, p.rot);
+    const face = spin(0, -1, p.rot); // turned to the desk, not the room
+    return {
+      id: `SIGNAL-EDIT-0${p.i + 1}`,
+      zoneId: "EDITING_DECK",
+      label: `Editing Deck ${p.i + 1}`,
+      lx: p.x + seat.x,
+      lz: p.z + seat.z,
+      faceX: face.x,
+      faceZ: face.z,
+      seatHeight: 0.55,
+    };
+  }),
+  ...ARENA_STOOLS.map((st, i) => {
+    const seat = spin(st.x, st.z, FLOW);
+    // stools sit either side of the arena; each one faces across it
+    const face = spin(0, st.z > 0 ? -1 : 1, FLOW);
+    return {
+      id: `SIGNAL-ARENA-0${i + 1}`,
+      zoneId: "CAMPAIGN_ARENA",
+      label: `Campaign Arena ${i + 1}`,
+      lx: ARENA[0] + seat.x,
+      lz: ARENA[1] + seat.z,
+      faceX: face.x,
+      faceZ: face.z,
+      seatHeight: 0.54,
+    };
+  }),
+  (() => {
+    const seat = spin(STUDIO_SEAT.x, STUDIO_SEAT.z, STUDIO.rot);
+    const face = spin(0, -1, STUDIO.rot); // toward the bench and the feed
+    return {
+      id: "SIGNAL-STUDIO-01",
+      zoneId: "CONTENT_STUDIO",
+      label: "Content Studio",
+      lx: STUDIO.x + seat.x,
+      lz: STUDIO.z + seat.z,
+      faceX: face.x,
+      faceZ: face.z,
+    };
+  })(),
 ]);
 
 export const SEATS: Seat[] = [...STAFF_SEATS, ...MEETING_SEATS, ...SIGNAL_SEATS];

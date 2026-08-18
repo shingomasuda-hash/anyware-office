@@ -17,7 +17,9 @@ import ProfileEditor from "@/components/office/ProfileEditor";
 import RealtimeHUD from "@/components/office/RealtimeHUD";
 import { LabSim } from "./LabSim";
 import type { Seat } from "./world/seats";
+import { useBoardData } from "./world/officeBoard";
 import Office3DCanvas from "./Office3DCanvas";
+import type { ComponentProps } from "react";
 
 // /office-lab shell (STEP 4.9). Reuses the STEP 3/4 hooks + HUD stack
 // unchanged; only the renderer differs (LabSim + R3F world instead of
@@ -84,6 +86,39 @@ class CanvasErrorBoundary extends Component<
     }
     return this.props.children;
   }
+}
+
+/**
+ * The canvas, with the office's own data on its walls. It has to be a
+ * separate component because the data context is opened by this file's
+ * own provider — and because nothing inside the Canvas can read React
+ * context at all, so the board crosses as a prop.
+ */
+function LiveCanvas(props: Omit<ComponentProps<typeof Office3DCanvas>, "board">) {
+  const { board } = useBoardData();
+  return <Office3DCanvas {...props} board={board} />;
+}
+
+/**
+ * JOIN ZOOM, offered only once you are actually sitting in the meeting
+ * pavilion. Sitting down at the table is the moment the invitation
+ * makes sense; everywhere else it is noise.
+ */
+function JoinMeetingButton({ seat }: { seat: Seat }) {
+  const { joinable } = useBoardData();
+  if (seat.areaId !== "MEETING" || !joinable) return null;
+  return (
+    <a
+      href={joinable.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      data-testid="join-meeting"
+      aria-label={`Join ${joinable.title} in ${joinable.room}`}
+      className="pointer-events-auto rounded-full border border-sky-300/40 bg-[#0b6ec4]/90 px-5 py-2.5 text-xs font-semibold tracking-[0.16em] text-white shadow-[0_2px_14px_rgba(8,14,24,0.45)] backdrop-blur transition-colors hover:bg-[#0d80e0]"
+    >
+      JOIN · {joinable.title.length > 24 ? `${joinable.title.slice(0, 24)}…` : joinable.title}
+    </a>
+  );
 }
 
 export default function OfficeLabShell() {
@@ -303,7 +338,7 @@ export default function OfficeLabShell() {
               onPointerCancel={onPointerEnd}
               onPointerLeave={onPointerEnd}
             >
-              <Office3DCanvas
+              <LiveCanvas
                 sim={sim}
                 user={user}
                 myStatus={realtime.myStatus}
@@ -362,6 +397,7 @@ export default function OfficeLabShell() {
                 CHECKED IN · {seat.seated.label.toUpperCase()}
               </div>
             ) : null}
+            {seat.seated ? <JoinMeetingButton seat={seat.seated} /> : null}
             <button
               type="button"
               disabled={!seat.seated && seat.taken}

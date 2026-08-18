@@ -24,6 +24,7 @@ import {
 } from "./world/campus";
 import { ROOM_THEMES } from "./world/themes";
 import { SEAT_BY_ID, SEATS } from "./world/seats";
+import type { BoardData } from "./world/boards";
 
 const SKY = "#e9e4f5";
 
@@ -112,8 +113,20 @@ const AREA_CAM: Partial<Record<AreaId, Framing>> = {
 type DevCam = { pos: [number, number, number]; look: [number, number, number] };
 const devCamRef: { current: DevCam | null } = { current: null };
 
-const MIN_BOOM = 3.4; // metres — closest the camera may tuck in
+const MIN_BOOM = 3.4; // metres — closest the camera may tuck in outdoors
+/**
+ * Indoors the arm is allowed to tuck in much closer. Refusing to go
+ * below the outdoor minimum is what pushed the camera THROUGH the back
+ * wall when you sat at the far end of a room: the boom stopped
+ * shortening while the wall kept coming. A short arm plus the lift
+ * below reads as leaning over your own shoulder; a long one reads as
+ * being buried in masonry.
+ */
+const MIN_BOOM_INSIDE = 1.5;
 const CAM_PAD = 0.7; // metres of clearance kept from any wall face
+
+/** Seated: closer, lower, and looking across whatever you sat down at. */
+const SEATED: Framing = { y: 2.05, dist: 3.4, look: 1.5 };
 
 /**
  * Longest boom length (metres) from the avatar along (ox,oz) that keeps
@@ -127,6 +140,7 @@ function cameraBoom(
   dx: number,
   dy: number,
   maxDist: number,
+  minBoom: number,
 ): number {
   const padU = CAM_PAD / WORLD_UNIT_TO_METERS;
   let best = maxDist;
@@ -164,7 +178,7 @@ function cameraBoom(
     }
     if (ok && t0 < best) best = t0;
   }
-  return Math.max(MIN_BOOM, best);
+  return Math.max(minBoom, best);
 }
 
 /**
@@ -174,8 +188,14 @@ function cameraBoom(
  */
 function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
   const camera = useThree((s) => s.camera);
+  const scene = useThree((s) => s.scene);
   const vDesired = useMemo(() => new THREE.Vector3(), []);
   const vLook = useMemo(() => new THREE.Vector3(), []);
+  const ray = useMemo(() => new THREE.Raycaster(), []);
+  const rayFrom = useMemo(() => new THREE.Vector3(), []);
+  const rayDir = useMemo(() => new THREE.Vector3(), []);
+  const solidBoom = useRef(Infinity);
+  const tick = useRef(0);
   const first = useRef(true);
   const lastT = useRef(performance.now());
   const camYaw = useRef(0);
@@ -206,7 +226,8 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
     const oz = Math.cos(camYaw.current);
     // exterior ↔ interior framing (§9)
     const area = sim.getSnapshot().area;
-    const want = area ? AREA_CAM[area] ?? INTERIOR_DEFAULT : EXTERIOR;
+    const seated = sim.seatedIn() !== null;
+    const want = seated ? SEATED : area ? AREA_CAM[area] ?? INTERIOR_DEFAULT : EXTERIOR;
     const k = first.current ? 1 : 1 - Math.exp(-1.6 * dt);
     framing.current.y += (want.y * mobileScale - framing.current.y) * k;
     framing.current.dist += (want.dist * mobileScale - framing.current.dist) * k;
@@ -219,13 +240,37 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
     // pushed back through the local linearisation of the transform —
     // exact where it matters (inside a building the transform is rigid).
     const back = campusDirToCanonical(ax, ay, ox / WORLD_UNIT_TO_METERS, oz / WORLD_UNIT_TO_METERS);
-    const dist = cameraBoom(ax, ay, back.x, back.y, camDist);
+    const minBoom = area ? MIN_BOOM_INSIDE : MIN_BOOM;
+    let dist = cameraBoom(ax, ay, back.x, back.y, camDist, minBoom);
     const [x, , z] = worldTo3D(ax, ay);
+
+    // Indoors the walls are not the only thing behind you. A room is
+    // full of things the collision map has never heard of — the screen
+    // wall of the conference room, a glazed pod, a planter — and the
+    // arm has to stop at those too, or sitting at the far end of a
+    // table puts the camera behind the board and the frame goes black.
+    // One ray does what a physics engine would, at every other frame,
+    // starting past the avatar's own body.
+    if (area) {
+      tick.current += 1;
+      if (tick.current % 2 === 0) {
+        rayFrom.set(x, 1.35, z);
+        rayDir.set(ox, (camY - 1.35) / Math.max(0.5, dist), oz).normalize();
+        ray.set(rayFrom, rayDir);
+        ray.near = 0.62;
+        ray.far = dist + 0.3;
+        const hit = ray.intersectObjects(scene.children, true).find((h) => h.object.visible);
+        solidBoom.current = hit ? Math.max(minBoom * 0.8, hit.distance - 0.42) : Infinity;
+      }
+      dist = Math.min(dist, solidBoom.current);
+    } else {
+      solidBoom.current = Infinity;
+    }
     // When the boom is compressed by a wall the camera RISES and looks
     // further down, so being cornered turns into a clean look into the
     // room instead of a close-up of the wall behind you.
-    const t = Math.max(0, Math.min(1, (dist - MIN_BOOM) / Math.max(0.001, camDist - MIN_BOOM)));
-    vDesired.set(x + ox * dist, camY + (1 - t) * (area ? 0.8 : 2.4), z + oz * dist);
+    const t = Math.max(0, Math.min(1, (dist - minBoom) / Math.max(0.001, camDist - minBoom)));
+    vDesired.set(x + ox * dist, camY + (1 - t) * (area ? 1.2 : 2.4), z + oz * dist);
     if (first.current) {
       camera.position.copy(vDesired);
       first.current = false;
@@ -237,37 +282,61 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
       camera.position.lerp(vDesired, 1 - Math.exp(-rate * dt));
     }
     // look further down as the boom compresses
-    vLook.set(x - ox * lookAhead * t, 1.05 - (1 - t) * 1.1, z - oz * lookAhead * t);
+    // Seated, the head is already low and the interesting things —
+    // the table, the people across it, the board on the wall — are at
+    // eye level, so the compressed view tips down far less.
+    vLook.set(
+      x - ox * lookAhead * t,
+      (seated ? 1.15 : 1.05) - (1 - t) * (seated ? 0.45 : 1.1),
+      z - oz * lookAhead * t,
+    );
     camera.lookAt(vLook);
   });
   return null;
 }
 
-function Lights() {
+/** Sun offset from whatever the shadow camera is centred on. */
+const SUN_OFFSET: [number, number, number] = [130, 150, -190];
+/** Half-width of the shadowed area, metres, around the player. */
+const SHADOW_SPAN = 58;
+
+function Lights({ sim }: { sim: LabSim }) {
   const light = useRef<THREE.DirectionalLight>(null);
   const plaza = useMemo(() => canonicalToCampus(PLAZA_CENTER.x, PLAZA_CENTER.y), []);
-  useEffect(() => {
+  // The shadow camera FOLLOWS the player rather than covering the whole
+  // campus. Spanning 280 m at 1024² gave soft mush at every edge AND
+  // paid for it twice: every caster inside that volume is drawn again
+  // into the shadow map each frame, on-screen or not, which is what put
+  // the interiors over the draw-call budget. A 116 m window around the
+  // player is four times the shadow resolution for a quarter of the
+  // casters; the sun's DIRECTION never changes, so nothing about the
+  // lighting reads differently.
+  useFrame(() => {
     const l = light.current;
     if (!l) return;
-    l.target.position.set(u(plaza.x), 0, u(plaza.y));
+    const c = canonicalToCampus(sim.avatar.x, sim.avatar.y);
+    const x = u(c.x);
+    const z = u(c.y);
+    l.position.set(x + SUN_OFFSET[0], SUN_OFFSET[1], z + SUN_OFFSET[2]);
+    l.target.position.set(x, 0, z);
     l.target.updateMatrixWorld();
-  }, [plaza]);
+  });
   return (
     <>
       <hemisphereLight args={["#edf5fc", "#dde2e8", 1.05]} />
       {/* one sun for the whole campus — open air, mid-afternoon */}
       <directionalLight
         ref={light}
-        position={[u(plaza.x) + 130, 150, u(plaza.y) - 190]}
+        position={[u(plaza.x) + SUN_OFFSET[0], SUN_OFFSET[1], u(plaza.y) + SUN_OFFSET[2]]}
         intensity={1.5}
         color="#fff6e8"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
-        shadow-camera-left={-140}
-        shadow-camera-right={140}
-        shadow-camera-top={140}
-        shadow-camera-bottom={-140}
+        shadow-camera-left={-SHADOW_SPAN}
+        shadow-camera-right={SHADOW_SPAN}
+        shadow-camera-top={SHADOW_SPAN}
+        shadow-camera-bottom={-SHADOW_SPAN}
         shadow-camera-near={20}
         shadow-camera-far={460}
         shadow-bias={-0.0014}
@@ -502,6 +571,7 @@ export default function Office3DCanvas({
   onPickPerson,
   onPickSelf,
   onReady,
+  board,
   isMobile = false,
 }: {
   sim: LabSim;
@@ -511,6 +581,7 @@ export default function Office3DCanvas({
   onPickPerson: (userId: string) => void;
   onPickSelf: () => void;
   onReady: () => void;
+  board?: BoardData;
   isMobile?: boolean;
 }) {
   const spawn = useMemo(() => canonicalToCampus(LAB_SPAWN.x, LAB_SPAWN.y), []);
@@ -548,9 +619,9 @@ export default function Office3DCanvas({
       }}
     >
       <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(Math.min(window.devicePixelRatio, 2))}>
-        <Lights />
+        <Lights sim={sim} />
         <SimDriver sim={sim} />
-        <CampusWorld sim={sim} />
+        <CampusWorld sim={sim} board={board} />
         <CameraRig sim={sim} isMobile={isMobile} />
         <LabInstruments sim={sim} />
         <AvatarMesh
