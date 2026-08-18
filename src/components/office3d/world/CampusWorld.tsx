@@ -7,7 +7,7 @@ import type { LabSim } from "../LabSim";
 import { CAMPUS_RADIUS, canonicalToCampus, PLAZA_CENTER } from "./campus";
 import { CampusBuildings } from "./massing";
 import { CampusOutdoor } from "./outdoor";
-import { SkyDome } from "./effects";
+import { MetaCity, SkyDome } from "./effects";
 import { MAT } from "./materials";
 import { LUX, makeSignage } from "./lux";
 import { u } from "./scale";
@@ -130,11 +130,25 @@ function Treeline() {
 function CampusWorldImpl({ sim }: { sim: LabSim }) {
   const c = useMemo(() => canonicalToCampus(PLAZA_CENTER.x, PLAZA_CENTER.y), []);
   const S = 3.2;
+  // Far enough out to be a HORIZON. At a smaller scale the towers stood
+  // just behind the pavilions and the campus read as a neon city block —
+  // the one direction the brief rules out. Fog does the rest.
+  const CITY = 11.0;
   return (
     <group>
+      {/* Sky, a city on the horizon, and a few things in the air. These
+          were built and tuned back when the office was one hall; the
+          campus needs them MORE, not less — from the plaza the eye
+          otherwise stops at a treeline. Both are instanced, so a whole
+          skyline costs a handful of draw calls. Their own authored
+          space is centred on (22, 15), hence the offset. */}
       <group position={[u(c.x) - 22 * S, 0, u(c.y) - 15 * S]} scale={S}>
         <SkyDome />
       </group>
+      <group position={[u(c.x) - 22 * CITY, 0, u(c.y) - 15 * CITY]} scale={CITY}>
+        <MetaCity />
+      </group>
+
       <Treeline />
       <CampusOutdoor />
       <PlazaCore />
