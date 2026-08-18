@@ -19,6 +19,7 @@ import type {
   RemoteAvatarRender,
   RemotePlayer,
   RosterEntry,
+  WorkplaceState,
 } from "./types";
 
 // Single owner of the office realtime connection: one channel carries
@@ -114,6 +115,13 @@ export class OfficeRealtimeManager {
   onStatusChange: ((status: RealtimeStatus) => void) | null = null;
   /** Supplies the local avatar position for presence tracking. */
   positionSource: (() => GameSnapshot | null) | null = null;
+  /**
+   * Seat check-in source. Polled on the publish interval that already
+   * runs, so sitting down needs no extra timer and no new channel — it
+   * rides the presence track that keeps everyone's roster fresh.
+   */
+  seatSource: (() => { seatId: string | null; workplaceState: WorkplaceState }) | null =
+    null;
 
   constructor(local: PresenceMeta) {
     this.local = { ...local };
@@ -177,6 +185,29 @@ export class OfficeRealtimeManager {
     return snap
       ? { ...this.local, x: snap.x, y: snap.y }
       : { ...this.local };
+  }
+
+  /**
+   * Push a seat change into presence. Called from the publish loop when
+   * the seat actually changes, so sitting down is one extra track() and
+   * nothing more.
+   */
+  private syncSeat() {
+    const seat = this.seatSource?.();
+    if (!seat) return;
+    const sameId = (this.local.seatId ?? null) === seat.seatId;
+    const sameState = (this.local.workplaceState ?? "walking") === seat.workplaceState;
+    if (sameId && sameState) return;
+    this.local = {
+      ...this.local,
+      seatId: seat.seatId,
+      workplaceState: seat.workplaceState,
+    };
+    if (this.channel && this.status === "live" && this.tracked) {
+      this.lastTrackAt = Date.now();
+      void this.channel.track(this.trackMeta());
+    }
+    this.scheduleRosterNotify();
   }
 
   private async subscribeChannel(tryPrivate: boolean) {
@@ -413,6 +444,8 @@ export class OfficeRealtimeManager {
         avatarUrl: this.local.avatarUrl,
         areaId: this.local.areaId,
         status: this.local.status,
+        seatId: this.local.seatId ?? null,
+        workplaceState: this.local.workplaceState ?? "walking",
         isSelf: true,
       },
     ];
@@ -425,6 +458,8 @@ export class OfficeRealtimeManager {
         avatarUrl: p.meta.avatarUrl,
         areaId: p.meta.areaId,
         status: p.meta.status,
+        seatId: p.meta.seatId ?? null,
+        workplaceState: p.meta.workplaceState ?? "walking",
         isSelf: false,
       });
     }
@@ -436,6 +471,7 @@ export class OfficeRealtimeManager {
   startPublishing(sample: () => GameSnapshot | null) {
     this.stopPublishing();
     this.sendTimer = window.setInterval(() => {
+      this.syncSeat();
       const snap = sample();
       const channel = this.channel;
       if (!snap || !channel || this.status !== "live") return;
@@ -582,6 +618,7 @@ export class OfficeRealtimeManager {
         department: p.meta.department,
         avatarUrl: p.meta.avatarUrl,
         status: p.meta.status,
+        seatId: p.meta.workplaceState === "checked_in" ? (p.meta.seatId ?? null) : null,
       });
     }
     return out;

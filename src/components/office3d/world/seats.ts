@@ -176,18 +176,30 @@ export const SEAT_BY_ID = SEATS.reduce(
 /** Interaction radius, canonical units (~2.2 m). */
 export const SEAT_REACH = 30;
 
-/** Closest seat the avatar could sit in right now, or null. */
-export function seatNear(x: number, y: number, area: AreaId | null): Seat | null {
+/**
+ * Closest seat to the avatar, and whether it is already taken. The seat
+ * is still returned when occupied so the UI can say OCCUPIED rather
+ * than silently offering nothing — "why can't I sit here" is a worse
+ * experience than a clear no.
+ */
+export function seatNear(
+  x: number,
+  y: number,
+  area: AreaId | null,
+  occupied?: ReadonlySet<string>,
+): { seat: Seat; taken: boolean } | null {
   if (!area) return null;
   let best: Seat | null = null;
   let bestD = SEAT_REACH;
   for (const s of SEATS) {
     if (s.areaId !== area) continue;
     const d = Math.hypot(s.approach.x - x, s.approach.y - y);
-    if (d < bestD) {
-      bestD = d;
+    // an occupied seat only wins if nothing free is closer
+    const bias = occupied?.has(s.id) ? SEAT_REACH * 0.35 : 0;
+    if (d + bias < bestD) {
+      bestD = d + bias;
       best = s;
     }
   }
-  return best;
+  return best ? { seat: best, taken: occupied?.has(best.id) ?? false } : null;
 }

@@ -80,8 +80,13 @@ export class LabSim {
   private seatT = 0;
   private seatFrom = { x: 0, y: 0 };
   private nearby: Seat | null = null;
+  private nearbyTaken = false;
+  /** Seat ids other people are checked in at (best-effort, from presence). */
+  private occupied: ReadonlySet<string> = new Set();
   /** fired when the seat you could take, or the one you are in, changes */
-  onSeatChange: ((s: { nearby: Seat | null; seated: Seat | null }) => void) | null = null;
+  onSeatChange:
+    | ((s: { nearby: Seat | null; seated: Seat | null; taken: boolean }) => void)
+    | null = null;
   private inputEnabled = true;
   private currentArea: AreaId | null = findAreaAt(LAB_SPAWN);
   private localIdentity: AvatarIdentity | null = null;
@@ -201,6 +206,7 @@ export class LabSim {
   sit(seat?: Seat | null): boolean {
     const target = seat ?? this.nearby;
     if (!target || this.seatPhase !== "idle") return false;
+    if (this.occupied.has(target.id)) return false;
     this.seat = target;
     this.seatPhase = "approach";
     this.seatT = 0;
@@ -222,7 +228,21 @@ export class LabSim {
   }
 
   private notifySeat() {
-    this.onSeatChange?.({ nearby: this.seatInReach(), seated: this.seatedIn() });
+    this.onSeatChange?.({
+      nearby: this.seatInReach(),
+      seated: this.seatedIn(),
+      taken: this.nearbyTaken,
+    });
+  }
+
+  /**
+   * Best-effort occupancy from presence. Someone else's claim simply
+   * makes a seat unofferable; there is no lock and no reservation, which
+   * is the right amount of machinery for one office floor.
+   */
+  setOccupiedSeats(ids: ReadonlySet<string>) {
+    this.occupied = ids;
+    if (this.seatPhase === "idle") this.refreshNearby();
   }
 
   /** Face the avatar along a canonical delta, in 4-way terms. */
@@ -430,9 +450,16 @@ export class LabSim {
       this.currentArea = area;
       this.onAreaChange?.(area);
     }
-    const near = seatNear(this.avatar.x, this.avatar.y, area);
-    if (near !== this.nearby) {
-      this.nearby = near;
+    this.refreshNearby();
+  }
+
+  private refreshNearby() {
+    const found = seatNear(this.avatar.x, this.avatar.y, this.currentArea, this.occupied);
+    const seat = found?.seat ?? null;
+    const taken = found?.taken ?? false;
+    if (seat !== this.nearby || taken !== this.nearbyTaken) {
+      this.nearby = seat;
+      this.nearbyTaken = taken;
       this.notifySeat();
     }
   }

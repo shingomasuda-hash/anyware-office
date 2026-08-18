@@ -23,7 +23,7 @@ import {
   PLAZA_CENTER,
 } from "./world/campus";
 import { ROOM_THEMES } from "./world/themes";
-import { SEATS } from "./world/seats";
+import { SEAT_BY_ID, SEATS } from "./world/seats";
 
 const SKY = "#e9e4f5";
 
@@ -461,7 +461,16 @@ function RemoteAvatars({
     const arr = sim.remoteSource?.(dt) ?? [];
     const m = samples.current;
     m.clear();
-    for (const r of arr) m.set(r.userId, r);
+    for (const r of arr) {
+      // A remote who is checked in should be SITTING, not standing on
+      // their chair. The seat catalogue is client-side, so presence only
+      // has to carry the id.
+      const seat = r.seatId ? SEAT_BY_ID[r.seatId] : undefined;
+      m.set(
+        r.userId,
+        seat ? { ...r, seated: true, seatHeight: seat.seatHeight } : r,
+      );
+    }
   });
   const remotes = roster.filter((r) => !r.isSelf);
   return (

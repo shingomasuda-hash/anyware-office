@@ -100,10 +100,11 @@ export default function OfficeLabShell() {
   const [cardUserId, setCardUserId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [openArea, setOpenArea] = useState<AreaId | null>(null);
-  const [seat, setSeat] = useState<{ nearby: Seat | null; seated: Seat | null }>({
-    nearby: null,
-    seated: null,
-  });
+  const [seat, setSeat] = useState<{
+    nearby: Seat | null;
+    seated: Seat | null;
+    taken: boolean;
+  }>({ nearby: null, seated: null, taken: false });
   const user = useCurrentUser();
   const sessionRole = useSessionRole();
   const isMobile = useIsMobile();
@@ -112,6 +113,16 @@ export default function OfficeLabShell() {
   const role = sessionRole;
 
   const realtime = useOfficeRealtime(gameRef, currentArea);
+
+  // Who else is sitting where. Best-effort from presence: a seat someone
+  // has claimed simply stops being offered.
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const r of realtime.roster) {
+      if (!r.isSelf && r.workplaceState === "checked_in" && r.seatId) ids.add(r.seatId);
+    }
+    sim.setOccupiedSeats(ids);
+  }, [realtime.roster, sim]);
 
   useEffect(() => {
     setSupported(webglSupported());
@@ -353,18 +364,31 @@ export default function OfficeLabShell() {
             ) : null}
             <button
               type="button"
+              disabled={!seat.seated && seat.taken}
               data-testid="seat-action"
-              aria-label={seat.seated ? "Stand up" : `Sit and check in at ${seat.nearby?.label}`}
+              aria-label={
+                seat.seated
+                  ? "Stand up"
+                  : seat.taken
+                    ? `${seat.nearby?.label} is occupied`
+                    : `Sit and check in at ${seat.nearby?.label}`
+              }
               onClick={() => (seat.seated ? sim.stand() : sim.sit())}
-              className="pointer-events-auto rounded-full border border-cyan-200/30 bg-[#0d1420]/85 px-5 py-2.5 text-xs font-semibold tracking-[0.16em] text-cyan-100 shadow-[0_2px_14px_rgba(8,14,24,0.45)] backdrop-blur transition-colors hover:bg-[#16233a]/90"
+              className={
+                !seat.seated && seat.taken
+                  ? "pointer-events-auto rounded-full border border-zinc-400/25 bg-[#0d1420]/70 px-5 py-2.5 text-xs font-semibold tracking-[0.16em] text-zinc-400 backdrop-blur"
+                  : "pointer-events-auto rounded-full border border-cyan-200/30 bg-[#0d1420]/85 px-5 py-2.5 text-xs font-semibold tracking-[0.16em] text-cyan-100 shadow-[0_2px_14px_rgba(8,14,24,0.45)] backdrop-blur transition-colors hover:bg-[#16233a]/90"
+              }
             >
               {seat.seated
                 ? isMobile
                   ? "STAND"
                   : "E · STAND UP"
-                : isMobile
-                  ? "SIT"
-                  : `E · SIT & CHECK IN`}
+                : seat.taken
+                  ? "OCCUPIED"
+                  : isMobile
+                    ? "SIT"
+                    : `E · SIT & CHECK IN`}
             </button>
           </div>
         ) : null}

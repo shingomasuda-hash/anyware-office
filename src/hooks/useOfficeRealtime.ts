@@ -101,6 +101,17 @@ export function useOfficeRealtime(
     manager.onStatusChange = setStatus;
     manager.onRosterChange = setRoster;
     manager.positionSource = () => gameRef.current?.getSnapshot() ?? null;
+    // The 3D lab's sim exposes seat state; the 2D engine does not, and
+    // duck-typing here keeps that difference out of the shared engine.
+    manager.seatSource = () => {
+      const g = gameRef.current as unknown as {
+        seatedIn?: () => { id: string } | null;
+      } | null;
+      const seat = g?.seatedIn?.() ?? null;
+      return seat
+        ? { seatId: seat.id, workplaceState: "checked_in" as const }
+        : { seatId: null, workplaceState: "walking" as const };
+    };
     setStatus("connecting");
     setRoster(manager.roster());
     void manager.connect();

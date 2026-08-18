@@ -25,7 +25,18 @@ export interface PresenceMeta {
   /** Position at track time so idle users render immediately for joiners. */
   x?: number;
   y?: number;
+  /**
+   * Seat check-in. Deliberately two fields and nothing else: the seat
+   * you occupy and whether you are working at it. Kept separate from
+   * `status`, because "checked in" and "away" are both true of someone
+   * who sat down and went to make coffee.
+   */
+  seatId?: string | null;
+  workplaceState?: WorkplaceState;
 }
+
+/** Whether someone is moving about or working at a seat. */
+export type WorkplaceState = "walking" | "checked_in";
 
 /** Broadcast movement event (throttled; integers in world units). */
 export interface MoveEvent {
@@ -76,6 +87,8 @@ export interface RemoteAvatarRender {
   department: string;
   avatarUrl: string | null;
   status: PresenceStatus;
+  /** Seat they are checked in at, so the renderer can sit them down. */
+  seatId: string | null;
 }
 
 /** Low-frequency roster entry for the People panel (self included). */
@@ -87,6 +100,8 @@ export interface RosterEntry {
   avatarUrl: string | null;
   areaId: AreaId | null;
   status: PresenceStatus;
+  seatId: string | null;
+  workplaceState: WorkplaceState;
   isSelf: boolean;
 }
 
