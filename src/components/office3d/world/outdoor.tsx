@@ -54,6 +54,84 @@ function entrancePoints() {
   });
 }
 
+/** One texture tile is PAVING_SLABS x PAVING_SLABS slabs over PAVING_TILE metres. */
+const PAVING_TILE = 16;
+const PAVING_SLABS = 4;
+
+/**
+ * The plaza's stone. A campus this size read as a grey void from any
+ * distance — nothing gives the eye a scale between the buildings and
+ * the horizon. Slabs do: they are the one thing outdoors that tells
+ * you how big a stride is. Built once into a repeating tile, so the
+ * whole ground stays a single draw call.
+ */
+function pavingTexture(): THREE.Texture {
+  const S = 1024;
+  const canvas = document.createElement("canvas");
+  canvas.width = S;
+  canvas.height = S;
+  const ctx = canvas.getContext("2d")!;
+  const cell = S / PAVING_SLABS;
+  ctx.fillStyle = "#e3e6ea";
+  ctx.fillRect(0, 0, S, S);
+  for (let j = 0; j < PAVING_SLABS; j++) {
+    for (let i = 0; i < PAVING_SLABS; i++) {
+      // a deterministic drift, so no two neighbouring slabs match and
+      // the tile does not announce itself when it repeats
+      const n = ((i * 7 + j * 13) % 5) / 5;
+      const v = 218 + Math.round(n * 18);
+      ctx.fillStyle = `rgb(${v},${v + 2},${v + 5})`;
+      ctx.fillRect(i * cell + 1.5, j * cell + 1.5, cell - 3, cell - 3);
+    }
+  }
+  // joints, then a finer scored line down the middle of each slab
+  ctx.strokeStyle = "rgba(112,124,138,0.48)";
+  ctx.lineWidth = 3;
+  for (let i = 0; i <= PAVING_SLABS; i++) {
+    const p = i * cell;
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, S);
+    ctx.moveTo(0, p);
+    ctx.lineTo(S, p);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(134,146,158,0.16)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i < PAVING_SLABS; i++) {
+    const p = i * cell + cell / 2;
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, S);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+let pavingCache: THREE.Texture | null = null;
+function paving(): THREE.Texture {
+  pavingCache ??= pavingTexture();
+  return pavingCache;
+}
+
+/**
+ * A stone material for a surface of a known size, so the slabs keep
+ * the same pitch whatever shape they are laid on. The figure surfaces
+ * — plaza disc, ring, approaches — carry their own UVs from 0 to 1,
+ * so each needs the repeat worked out from its real extent.
+ */
+function stone(color: string, roughness: number, wx: number, wz: number) {
+  const tex = paving().clone();
+  tex.needsUpdate = true;
+  tex.repeat.set(wx / PAVING_TILE, wz / PAVING_TILE);
+  return new THREE.MeshStandardMaterial({ color, map: tex, roughness });
+}
+
 /** The walkable ground: image of the canonical corridor. */
 function Ground() {
   const geom = useMemo(() => {
@@ -71,8 +149,12 @@ function Ground() {
         pos[k++] = u(p.x);
         pos[k++] = 0;
         pos[k++] = u(p.y);
-        uv[t++] = i / NX;
-        uv[t++] = j / NZ;
+        // UVs are taken in CAMPUS metres, not along the corridor. Down
+        // the corridor's own axes the transform stretches by a factor
+        // of several, so a paving grid laid out that way arrives as
+        // smeared ribbons; in world space the slabs stay square.
+        uv[t++] = u(p.x) / PAVING_TILE;
+        uv[t++] = u(p.y) / PAVING_TILE;
       }
     }
     const idx: number[] = [];
@@ -93,7 +175,12 @@ function Ground() {
     return g;
   }, []);
   const mat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: "#dfe3e7", roughness: 0.9 }),
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: "#ffffff",
+        map: paving(),
+        roughness: 0.86,
+      }),
     [],
   );
   return <mesh geometry={geom} material={mat} position={[0, 0.01, 0]} receiveShadow />;
@@ -123,19 +210,17 @@ function Circulation() {
     const rs = doors.map((d) => d.p.distanceTo(c));
     return Math.min(...rs) - 7;
   }, [doors, c]);
-  const paving = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: "#eef1f4", roughness: 0.72 }),
-    [],
+  const plazaMat = useMemo(() => stone("#f4f6f8", 0.72, PLAZA_RX * 2, PLAZA_RZ * 2), []);
+  const ringMat = useMemo(
+    () => stone("#eceff3", 0.8, (ringR + 3.2) * 2, (ringR + 3.2) * 2),
+    [ringR],
   );
-  const lane = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: "#e6eaee", roughness: 0.8 }),
-    [],
-  );
+  const laneMat = useMemo(() => stone("#eceff3", 0.8, 5.4, 5.4), []);
   return (
     <group>
       {/* paved heart */}
       <mesh
-        material={paving}
+        material={plazaMat}
         rotation-x={-Math.PI / 2}
         position={[c.x, 0.03, c.y]}
         scale={[PLAZA_RX, PLAZA_RZ, 1]}
@@ -143,7 +228,7 @@ function Circulation() {
       >
         <circleGeometry args={[1, 56]} />
       </mesh>
-      <mesh material={lane} rotation-x={-Math.PI / 2} position={[c.x, 0.025, c.y]}>
+      <mesh material={ringMat} rotation-x={-Math.PI / 2} position={[c.x, 0.025, c.y]}>
         <ringGeometry args={[ringR - 3.2, ringR + 3.2, 72]} />
       </mesh>
       {/* radial approach from the ring to each entrance */}
@@ -155,7 +240,7 @@ function Circulation() {
         return (
           <mesh
             key={b.id}
-            material={lane}
+            material={laneMat}
             rotation={[-Math.PI / 2, 0, ang]}
             position={[mid.x, 0.022, mid.y]}
           >
@@ -174,7 +259,7 @@ function Circulation() {
       {doors.map(({ b, p }) => (
         <mesh
           key={b.id}
-          material={paving}
+          material={plazaMat}
           rotation-x={-Math.PI / 2}
           position={[p.x, 0.028, p.y]}
         >
@@ -220,8 +305,19 @@ function PlazaLandscape() {
     }
     return out;
   }, [doors, c]);
+  /**
+   * Light masts, at every fourth bollard. Between knee-high bollards
+   * and a nine-storey tower the campus had nothing at all, and a space
+   * with no middle register reads flat however big it is. Seven metres
+   * is the height that puts something human-made above head height
+   * without competing with the buildings.
+   */
+  const masts = useMemo(() => bollards.filter((_, i) => i % 4 === 0), [bollards]);
   const post = useRef<THREE.InstancedMesh>(null);
   const cap = useRef<THREE.InstancedMesh>(null);
+  const mast = useRef<THREE.InstancedMesh>(null);
+  const mastArm = useRef<THREE.InstancedMesh>(null);
+  const mastLamp = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
@@ -237,7 +333,23 @@ function PlazaLandscape() {
       mesh.count = bollards.length;
       mesh.instanceMatrix.needsUpdate = true;
     }
-  }, [bollards]);
+    for (const [mesh, h, w, d, y] of [
+      [mast.current, 7.2, 0.16, 0.16, 3.6],
+      [mastArm.current, 0.16, 1.5, 0.2, 7.2],
+      [mastLamp.current, 0.07, 1.2, 0.16, 7.09],
+    ] as const) {
+      if (!mesh) continue;
+      masts.forEach(([bx, bz], i) => {
+        // arms point in toward the plaza, so the ring reads as one move
+        const ang = Math.atan2(c.x - bx, c.y - bz);
+        q.setFromEuler(new THREE.Euler(0, ang, 0));
+        m.compose(new THREE.Vector3(bx, y, bz), q, new THREE.Vector3(w, h, d));
+        mesh.setMatrixAt(i, m);
+      });
+      mesh.count = masts.length;
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+  }, [bollards, masts, c]);
   return (
     <group>
       {islands.map((it, i) => (
@@ -271,6 +383,20 @@ function PlazaLandscape() {
         <boxGeometry />
       </instancedMesh>
       <instancedMesh ref={cap} args={[undefined, undefined, bollards.length]} material={LUX.cove}>
+        <boxGeometry />
+      </instancedMesh>
+      <instancedMesh
+        ref={mast}
+        args={[undefined, undefined, masts.length]}
+        material={LUX.pearl}
+        castShadow
+      >
+        <boxGeometry />
+      </instancedMesh>
+      <instancedMesh ref={mastArm} args={[undefined, undefined, masts.length]} material={LUX.pearl}>
+        <boxGeometry />
+      </instancedMesh>
+      <instancedMesh ref={mastLamp} args={[undefined, undefined, masts.length]} material={LUX.coveSoft}>
         <boxGeometry />
       </instancedMesh>
     </group>

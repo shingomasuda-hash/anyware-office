@@ -298,10 +298,12 @@ function CameraRig({ sim, isMobile }: { sim: LabSim; isMobile: boolean }) {
 /** Sun offset from whatever the shadow camera is centred on. */
 const SUN_OFFSET: [number, number, number] = [130, 150, -190];
 /** Half-width of the shadowed area, metres, around the player. */
-const SHADOW_SPAN = 58;
+const SHADOW_SPAN = 72;
 
 function Lights({ sim }: { sim: LabSim }) {
   const light = useRef<THREE.DirectionalLight>(null);
+  const camera = useThree((s) => s.camera);
+  const fwd = useMemo(() => new THREE.Vector3(), []);
   const plaza = useMemo(() => canonicalToCampus(PLAZA_CENTER.x, PLAZA_CENTER.y), []);
   // The shadow camera FOLLOWS the player rather than covering the whole
   // campus. Spanning 280 m at 1024² gave soft mush at every edge AND
@@ -315,8 +317,15 @@ function Lights({ sim }: { sim: LabSim }) {
     const l = light.current;
     if (!l) return;
     const c = canonicalToCampus(sim.avatar.x, sim.avatar.y);
-    const x = u(c.x);
-    const z = u(c.y);
+    // Centred AHEAD of the avatar, along the way the camera is looking:
+    // the player never sees what is behind the camera, so half a window
+    // spent there is half a window wasted. This puts nearly all of it
+    // on the part of the campus actually in frame.
+    camera.getWorldDirection(fwd);
+    fwd.y = 0;
+    if (fwd.lengthSq() > 1e-6) fwd.normalize();
+    const x = u(c.x) + fwd.x * SHADOW_SPAN * 0.45;
+    const z = u(c.y) + fwd.z * SHADOW_SPAN * 0.45;
     l.position.set(x + SUN_OFFSET[0], SUN_OFFSET[1], z + SUN_OFFSET[2]);
     l.target.position.set(x, 0, z);
     l.target.updateMatrixWorld();

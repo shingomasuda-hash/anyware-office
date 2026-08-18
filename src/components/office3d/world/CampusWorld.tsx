@@ -85,6 +85,57 @@ function PlazaCore() {
           <planeGeometry args={[7.6, 1.9]} />
         </mesh>
       </group>
+      <CampusHalo />
+    </group>
+  );
+}
+
+/**
+ * CAMPUS HALO. From the plaza the buildings top out around ten metres
+ * and the eye ran straight off them into the sky — the campus had a
+ * plan but no skyline. Two very thin pearl rings, held wide and high
+ * over the whole plaza, give it one: they close the space overhead,
+ * they say the place was designed, and at this scale they cost almost
+ * nothing. Deliberately NOT glowing hardware — a slow, quiet piece of
+ * structure, which is the difference between a 2035 headquarters and
+ * an arcade.
+ */
+function CampusHalo() {
+  const outer = useRef<THREE.Group>(null);
+  const inner = useRef<THREE.Group>(null);
+  useFrame((_, dt) => {
+    const d = Math.min(dt, 0.2);
+    if (outer.current) outer.current.rotation.y += d * 0.012;
+    if (inner.current) inner.current.rotation.y -= d * 0.019;
+  });
+  return (
+    <group>
+      <group ref={outer} position={[0, 27.5, 0]}>
+        <mesh material={LUX.pearl} rotation-x={-Math.PI / 2}>
+          <torusGeometry args={[36, 0.34, 6, 84]} />
+        </mesh>
+        {/* eight thin hangers, so the ring reads as built, not floating */}
+        {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+          const a = (i / 8) * Math.PI * 2;
+          return (
+            <mesh
+              key={i}
+              material={LUX.pearl}
+              position={[Math.sin(a) * 36, 1.6, Math.cos(a) * 36]}
+            >
+              <boxGeometry args={[0.16, 3.2, 0.16]} />
+            </mesh>
+          );
+        })}
+      </group>
+      <group ref={inner} position={[0, 31.4, 0]}>
+        <mesh material={LUX.pearl} rotation-x={-Math.PI / 2}>
+          <torusGeometry args={[24.5, 0.26, 6, 72]} />
+        </mesh>
+        <mesh material={LUX.holoSoft} rotation-x={-Math.PI / 2}>
+          <ringGeometry args={[24.2, 24.8, 72]} />
+        </mesh>
+      </group>
     </group>
   );
 }
